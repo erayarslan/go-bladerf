@@ -4,12 +4,28 @@ package bladerf
 // #cgo darwin LDFLAGS: -L/usr/local/lib
 // #cgo LDFLAGS: -lbladeRF
 // #include <libbladeRF.h>
+//
+// extern void* cbGo(struct bladerf *dev, struct bladerf_stream *stream, struct bladerf_metadata *md, void* samples, size_t num_samples, void* user_data);
 import "C"
 import (
 	error2 "bladerf/error"
 	"fmt"
 	"unsafe"
 )
+
+//export cbGo
+func cbGo(dev *C.struct_bladerf,
+	stream *C.struct_bladerf_stream,
+	metadata *C.struct_bladerf_metadata,
+	samples unsafe.Pointer,
+	numSamples C.size_t,
+	userData unsafe.Pointer) unsafe.Pointer {
+
+	fmt.Println("HELLO")
+
+	var rv unsafe.Pointer
+	return rv
+}
 
 type GainMode int
 type Backend int
@@ -22,6 +38,12 @@ type RXMux int
 type ClockSelect int
 type PowerSource int
 type PMICRegister int
+type IOModule int
+
+const (
+	IOTX IOModule = C.BLADERF_MODULE_TX
+	IORX IOModule = C.BLADERF_MODULE_RX
+)
 
 const (
 	Default        GainMode = C.BLADERF_GAIN_DEFAULT
@@ -135,6 +157,14 @@ type DevInfo struct {
 
 type BladeRF struct {
 	bladeRF *C.struct_bladerf
+}
+
+type Module struct {
+	module *C.struct_bladerf_module
+}
+
+type Stream struct {
+	stream *C.struct_bladerf_stream
 }
 
 func GetVersion() Version {
@@ -251,4 +281,46 @@ func Open() BladeRF {
 
 func Close(bladeRF BladeRF) {
 	C.bladerf_close(bladeRF.bladeRF)
+}
+
+func SetLoopback(bladeRF *BladeRF, loopback Loopback) {
+	C.bladerf_set_loopback((*bladeRF).bladeRF, C.bladerf_loopback(loopback))
+}
+
+func SetFrequency(bladeRF *BladeRF, module IOModule, frequency int) {
+	err := GetError(C.bladerf_set_frequency((*bladeRF).bladeRF, C.bladerf_module(module), C.ulonglong(frequency)))
+	fmt.Println(err)
+}
+
+func SetSampleRate(bladeRF *BladeRF, module IOModule, sampleRate int) {
+	C.bladerf_set_sample_rate((*bladeRF).bladeRF, C.bladerf_module(module), C.uint(sampleRate), nil)
+}
+
+func SetBandwidth(bladeRF *BladeRF, module IOModule, bandwidth int) {
+	C.bladerf_set_bandwidth((*bladeRF).bladeRF, C.bladerf_module(module), C.uint(bandwidth), nil)
+}
+
+func SetGain(bladeRF *BladeRF, module IOModule, gain int) {
+	C.bladerf_set_gain((*bladeRF).bladeRF, C.bladerf_module(module), C.int(gain))
+}
+
+func EnableModule(bladeRF *BladeRF, module IOModule) {
+	C.bladerf_enable_module((*bladeRF).bladeRF, C.bladerf_module(module), true)
+}
+
+func DisableModule(bladeRF *BladeRF, module IOModule) {
+	C.bladerf_enable_module((*bladeRF).bladeRF, C.bladerf_module(module), false)
+}
+
+func InitStream(bladeRF *BladeRF, format Format, numBuffers int, samplesPerBuffer int, numTransfers int) *Stream {
+	var buffers *unsafe.Pointer
+	var data unsafe.Pointer
+	var rxStream *C.struct_bladerf_stream
+	stream := Stream{stream: rxStream}
+	C.bladerf_init_stream(&((stream).stream), (*bladeRF).bladeRF, (*[0]byte)((C.cbGo)), &buffers, C.ulong(numBuffers), C.bladerf_format(format), C.ulong(samplesPerBuffer), C.ulong(numTransfers), data)
+	return &stream
+}
+
+func StartStream(stream *Stream, module IOModule) {
+	C.bladerf_stream(stream.stream, C.bladerf_channel_layout(module))
 }
