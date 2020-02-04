@@ -21,7 +21,13 @@ func cbGo(dev *C.struct_bladerf,
 	numSamples C.size_t,
 	userData unsafe.Pointer) unsafe.Pointer {
 
-	fmt.Println("HELLO")
+	data := (*[0]uint16)(samples)
+
+	if len(*data) > 0 {
+		println(data)
+	} else {
+		println(data)
+	}
 
 	var rv unsafe.Pointer
 	return rv
@@ -304,12 +310,23 @@ func SetGain(bladeRF *BladeRF, module IOModule, gain int) {
 	C.bladerf_set_gain((*bladeRF).bladeRF, C.bladerf_module(module), C.int(gain))
 }
 
-func EnableModule(bladeRF *BladeRF, module IOModule) {
-	C.bladerf_enable_module((*bladeRF).bladeRF, C.bladerf_module(module), true)
+func EnableModule(bladeRF *BladeRF, direction Direction) {
+	C.bladerf_enable_module((*bladeRF).bladeRF, C.bladerf_module(direction), true)
 }
 
-func DisableModule(bladeRF *BladeRF, module IOModule) {
-	C.bladerf_enable_module((*bladeRF).bladeRF, C.bladerf_module(module), false)
+func DisableModule(bladeRF *BladeRF, direction Direction) {
+	C.bladerf_enable_module((*bladeRF).bladeRF, C.bladerf_module(direction), false)
+}
+
+func SyncRX(bladeRF *BladeRF) {
+	var metadata *C.struct_bladerf_metadata
+
+	var buff *C.int16_t
+	size := unsafe.Sizeof(*buff)
+	start := C.malloc(C.size_t(size * 10000 * 2 * 1))
+
+	err := GetError(C.bladerf_sync_rx((*bladeRF).bladeRF, start, 10000, metadata, 5000))
+	fmt.Println(err)
 }
 
 func InitStream(bladeRF *BladeRF, format Format, numBuffers int, samplesPerBuffer int, numTransfers int) *Stream {
@@ -321,6 +338,28 @@ func InitStream(bladeRF *BladeRF, format Format, numBuffers int, samplesPerBuffe
 	return &stream
 }
 
-func StartStream(stream *Stream, module IOModule) {
-	C.bladerf_stream(stream.stream, C.bladerf_channel_layout(module))
+func DeInitStream(stream *Stream) {
+	C.bladerf_deinit_stream(stream.stream)
+}
+
+func GetStreamTimeout(bladeRF *BladeRF, direction Direction) int {
+	var timeout C.uint
+	err := GetError(C.bladerf_get_stream_timeout((*bladeRF).bladeRF, C.bladerf_direction(direction), &timeout))
+	fmt.Println(err)
+	return int(timeout)
+}
+
+func SetStreamTimeout(bladeRF *BladeRF, direction Direction, timeout int) {
+	err := GetError(C.bladerf_set_stream_timeout((*bladeRF).bladeRF, C.bladerf_direction(direction), C.uint(timeout)))
+	fmt.Println(err)
+}
+
+func SyncConfig(bladeRF *BladeRF, layout ChannelLayout, format Format, numBuffers int, bufferSize int, numTransfers int, timeout int) {
+	err := GetError(C.bladerf_sync_config((*bladeRF).bladeRF, C.bladerf_channel_layout(layout), C.bladerf_format(format), C.uint(numBuffers), C.uint(bufferSize), C.uint(numTransfers), C.uint(timeout)))
+	fmt.Println(err)
+}
+
+func StartStream(stream *Stream, layout ChannelLayout) {
+	err := GetError(C.bladerf_stream(stream.stream, C.bladerf_channel_layout(layout)))
+	fmt.Println(err)
 }

@@ -24,30 +24,12 @@ func TestBladeRF(t *testing.T) {
 
 	rf := Open()
 	stream := InitStream(&rf, SC16_Q11, 2, 1024, 1)
-	StartStream(stream, IOTX)
+	StartStream(stream, RX_X1)
 	Close(rf)
 }
 
 func TestStream(t *testing.T) {
 	log.SetVerbosity(log.Debug)
-
-	f_low := 250000000
-	f_high := 700000000
-	f_step := 1000000
-
-	freq := f_low
-
-	tx_gain := 56
-	rx_gain := 3
-
-	num_buffers := 24
-	samples_per_buffer := 8192
-	num_transfers := 8
-
-	sample_rate := 4000000
-	bandwidth := 1500000
-
-	n_steps := 1 + (f_high-f_low)/f_step
 
 	devices := GetDeviceList()
 
@@ -59,32 +41,32 @@ func TestStream(t *testing.T) {
 	rf := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
-	SetLoopback(&rf, Disabled)
+	SyncConfig(&rf, RX_X1, SC16_Q11, 32, 32768, 16, 16000)
+	EnableModule(&rf, RX)
+	SyncRX(&rf)
+}
 
-	SetFrequency(&rf, IOTX, freq)
-	SetFrequency(&rf, IORX, freq)
+func TestAsyncStream(t *testing.T) {
+	log.SetVerbosity(log.Debug)
 
-	SetSampleRate(&rf, IOTX, sample_rate)
-	SetSampleRate(&rf, IORX, sample_rate)
+	devices := GetDeviceList()
 
-	SetBandwidth(&rf, IOTX, bandwidth)
-	SetBandwidth(&rf, IORX, bandwidth)
-
-	SetGain(&rf, IOTX, tx_gain)
-	SetGain(&rf, IORX, rx_gain)
-
-	EnableModule(&rf, IOTX)
-	EnableModule(&rf, IORX)
-
-	for i := 0; i < n_steps; i++ {
-
-		//tx_samples_left := num_buffers * samples_per_buffer
-		//rx_samples_left := num_buffers * samples_per_buffer
-
-		tx_stream := InitStream(&rf, SC16_Q11, num_buffers, samples_per_buffer, num_transfers)
-		rx_stream := InitStream(&rf, SC16_Q11, num_buffers, samples_per_buffer, num_transfers)
-
-		StartStream(tx_stream, IOTX)
-		StartStream(rx_stream, IORX)
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
 	}
+
+	rf := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	SetSampleRate(&rf, IORX, 1000000)
+	EnableModule(&rf, RX)
+
+	rxStream := InitStream(&rf, SC16_Q11, 32, 32768, 16)
+	defer DeInitStream(rxStream)
+
+	SetStreamTimeout(&rf, RX, 16)
+	GetStreamTimeout(&rf, RX)
+
+	StartStream(rxStream, RX_X1)
 }
