@@ -161,6 +161,10 @@ type DevInfo struct {
 	devInfo *C.struct_bladerf_devinfo
 }
 
+type Range struct {
+	bfRange *C.struct_bladerf_range
+}
+
 type BladeRF struct {
 	bladeRF *C.struct_bladerf
 }
@@ -293,48 +297,110 @@ func SetLoopback(bladeRF *BladeRF, loopback Loopback) {
 	C.bladerf_set_loopback((*bladeRF).bladeRF, C.bladerf_loopback(loopback))
 }
 
-func SetFrequency(bladeRF *BladeRF, module IOModule, frequency int) {
-	err := GetError(C.bladerf_set_frequency((*bladeRF).bladeRF, C.bladerf_module(module), C.ulonglong(frequency)))
-	fmt.Println(err)
+func SetFrequency(bladeRF *BladeRF, module IOModule, frequency int) error {
+	return GetError(C.bladerf_set_frequency((*bladeRF).bladeRF, C.bladerf_module(module), C.ulonglong(frequency)))
 }
 
-func SetSampleRate(bladeRF *BladeRF, module IOModule, sampleRate int) {
-	C.bladerf_set_sample_rate((*bladeRF).bladeRF, C.bladerf_module(module), C.uint(sampleRate), nil)
+func SetSampleRate(bladeRF *BladeRF, module IOModule, sampleRate int) error {
+	var actual C.uint
+	err := GetError(C.bladerf_set_sample_rate((*bladeRF).bladeRF, C.bladerf_module(module), C.uint(sampleRate), &actual))
+
+	if err == nil {
+		println(uint(actual))
+	}
+
+	return err
+}
+
+func GetSampleRateRange(bladeRF *BladeRF, module IOModule) (int, int, int, error) {
+	var bfRange *C.struct_bladerf_range
+
+	err := GetError(C.bladerf_get_sample_rate_range((*bladeRF).bladeRF, C.bladerf_module(module), &bfRange))
+
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	return int(bfRange.min), int(bfRange.max), int(bfRange.step), nil
 }
 
 func SetBandwidth(bladeRF *BladeRF, module IOModule, bandwidth int) {
 	C.bladerf_set_bandwidth((*bladeRF).bladeRF, C.bladerf_module(module), C.uint(bandwidth), nil)
 }
 
-func SetGain(bladeRF *BladeRF, module IOModule, gain int) {
-	C.bladerf_set_gain((*bladeRF).bladeRF, C.bladerf_module(module), C.int(gain))
+func SetGain(bladeRF *BladeRF, module IOModule, gain int) error {
+	return GetError(C.bladerf_set_gain((*bladeRF).bladeRF, C.bladerf_module(module), C.int(gain)))
 }
 
-func EnableModule(bladeRF *BladeRF, direction Direction) {
-	C.bladerf_enable_module((*bladeRF).bladeRF, C.bladerf_module(direction), true)
+func EnableModule(bladeRF *BladeRF, direction Direction) error {
+	return GetError(C.bladerf_enable_module((*bladeRF).bladeRF, C.bladerf_module(direction), true))
 }
 
-func DisableModule(bladeRF *BladeRF, direction Direction) {
-	C.bladerf_enable_module((*bladeRF).bladeRF, C.bladerf_module(direction), false)
+func DisableModule(bladeRF *BladeRF, direction Direction) error {
+	return GetError(C.bladerf_enable_module((*bladeRF).bladeRF, C.bladerf_module(direction), false))
 }
 
-func SyncRX(bladeRF *BladeRF) {
-	var metadata *C.struct_bladerf_metadata
+var call = 0
+
+func do_work() bool {
+	call = call + 1
+	return call >= 5000
+}
+
+func process_sample(addr unsafe.Pointer, size uint) {
+
+}
+
+func SyncRX(bladeRF *BladeRF) []int16 {
+	var metadata C.struct_bladerf_metadata
 
 	var buff *C.int16_t
 	size := unsafe.Sizeof(*buff)
 	start := C.malloc(C.size_t(size * 10000 * 2 * 1))
 
-	err := GetError(C.bladerf_sync_rx((*bladeRF).bladeRF, start, 10000, metadata, 5000))
-	fmt.Println(err)
+	var err error
+	var done bool
+	var results []int16
+
+	for err == nil && !done {
+		err = GetError(C.bladerf_sync_rx((*bladeRF).bladeRF, start, 10000, &metadata, 5000))
+		if err == nil {
+			done = do_work()
+			if done {
+				println("DONE!")
+				process_sample(start, uint(metadata.actual_count))
+
+				for i := 0; i < (int(metadata.actual_count)); i++ {
+					n := (*C.int16_t)(unsafe.Pointer(uintptr(start) + (size * uintptr(i))))
+					results = append(results, int16(*n))
+				}
+			}
+		} else {
+			fmt.Printf("Failed to RX samples: %s", err)
+		}
+	}
+
+	return results
 }
 
 func InitStream(bladeRF *BladeRF, format Format, numBuffers int, samplesPerBuffer int, numTransfers int) *Stream {
 	var buffers *unsafe.Pointer
 	var data unsafe.Pointer
 	var rxStream *C.struct_bladerf_stream
+
 	stream := Stream{stream: rxStream}
-	C.bladerf_init_stream(&((stream).stream), (*bladeRF).bladeRF, (*[0]byte)((C.cbGo)), &buffers, C.ulong(numBuffers), C.bladerf_format(format), C.ulong(samplesPerBuffer), C.ulong(numTransfers), data)
+
+	C.bladerf_init_stream(
+		&((stream).stream),
+		(*bladeRF).bladeRF,
+		(*[0]byte)((C.cbGo)),
+		&buffers, C.ulong(numBuffers),
+		C.bladerf_format(format),
+		C.ulong(samplesPerBuffer),
+		C.ulong(numTransfers),
+		data,
+	)
+
 	return &stream
 }
 
@@ -354,9 +420,9 @@ func SetStreamTimeout(bladeRF *BladeRF, direction Direction, timeout int) {
 	fmt.Println(err)
 }
 
-func SyncConfig(bladeRF *BladeRF, layout ChannelLayout, format Format, numBuffers int, bufferSize int, numTransfers int, timeout int) {
+func SyncConfig(bladeRF *BladeRF, layout ChannelLayout, format Format, numBuffers int, bufferSize int, numTransfers int, timeout int) error {
 	err := GetError(C.bladerf_sync_config((*bladeRF).bladeRF, C.bladerf_channel_layout(layout), C.bladerf_format(format), C.uint(numBuffers), C.uint(bufferSize), C.uint(numTransfers), C.uint(timeout)))
-	fmt.Println(err)
+	return err
 }
 
 func StartStream(stream *Stream, layout ChannelLayout) {
