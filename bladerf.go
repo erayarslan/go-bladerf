@@ -324,12 +324,29 @@ func GetSampleRateRange(bladeRF *BladeRF, module IOModule) (int, int, int, error
 	return int(bfRange.min), int(bfRange.max), int(bfRange.step), nil
 }
 
-func SetBandwidth(bladeRF *BladeRF, module IOModule, bandwidth int) {
-	C.bladerf_set_bandwidth((*bladeRF).bladeRF, C.bladerf_module(module), C.uint(bandwidth), nil)
+func SetBandwidth(bladeRF *BladeRF, module IOModule, bandwidth int) (int, error) {
+	var actual C.bladerf_bandwidth
+	return int(actual), GetError(C.bladerf_set_bandwidth((*bladeRF).bladeRF, C.bladerf_module(module), C.uint(bandwidth), &actual))
 }
 
 func SetGain(bladeRF *BladeRF, module IOModule, gain int) error {
 	return GetError(C.bladerf_set_gain((*bladeRF).bladeRF, C.bladerf_module(module), C.int(gain)))
+}
+
+func GetGainMode(bladeRF *BladeRF, module IOModule) (GainMode, error) {
+	var mode C.bladerf_gain_mode
+
+	err := GetError(C.bladerf_get_gain_mode((*bladeRF).bladeRF, C.bladerf_module(module), &mode))
+	result := GainMode(int(mode))
+	if err == nil {
+		return result, nil
+	}
+
+	return -1, err
+}
+
+func SetGainMode(bladeRF *BladeRF, module IOModule, mode GainMode) error  {
+	return GetError(C.bladerf_set_gain_mode((*bladeRF).bladeRF, C.bladerf_module(module), C.bladerf_gain_mode(mode)))
 }
 
 func EnableModule(bladeRF *BladeRF, direction Direction) error {
@@ -347,29 +364,22 @@ func do_work() bool {
 	return call >= 5000
 }
 
-func process_sample(addr unsafe.Pointer, size uint) {
-
-}
-
-func SyncRX(bladeRF *BladeRF) []int16 {
+func SyncRX(bladeRF *BladeRF, bufferSize uintptr) []int16 {
 	var metadata C.struct_bladerf_metadata
 
 	var buff *C.int16_t
 	size := unsafe.Sizeof(*buff)
-	start := C.malloc(C.size_t(size * 10000 * 2 * 1))
+	start := C.malloc(C.size_t(size * bufferSize * 2 * 1))
 
 	var err error
 	var done bool
 	var results []int16
 
 	for err == nil && !done {
-		err = GetError(C.bladerf_sync_rx((*bladeRF).bladeRF, start, 10000, &metadata, 5000))
+		err = GetError(C.bladerf_sync_rx((*bladeRF).bladeRF, start, C.uint(bufferSize), &metadata, 32))
 		if err == nil {
 			done = do_work()
 			if done {
-				println("DONE!")
-				process_sample(start, uint(metadata.actual_count))
-
 				for i := 0; i < (int(metadata.actual_count)); i++ {
 					n := (*C.int16_t)(unsafe.Pointer(uintptr(start) + (size * uintptr(i))))
 					results = append(results, int16(*n))

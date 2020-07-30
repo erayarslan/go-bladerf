@@ -4,138 +4,40 @@ import (
 	"bladerf/log"
 	"fmt"
 	"github.com/gordonklaus/portaudio"
+	fifo "github.com/racerxdl/go.fifo"
+	"github.com/racerxdl/segdsp/demodcore"
 	log2 "log"
-	"math"
 	"os"
 	"os/signal"
 	"testing"
 )
 
-type agcState struct {
-	gainNum    int32
-	gainDen    int32
-	gainMax    int32
-	peakTarget int
-	attackStep int
-	decayStep  int
-	err        int
-}
+const audioBufferSize = 8192 / 2
 
-type demodState struct {
-	lowpassed []int16
-	rateIn    int
-	rateOut   int
-	rateOut2  int
-	nowR      int16
-	nowJ      int16
-	preR      int16
-	preJ      int16
-	prevIndex int
-	// min 1, max 256
-	downsample     int
-	postDownsample int
-	outputScale    int
-	squelchLevel   int
-	conseqSquelch  int
-	squelchHits    int
-	customAtan     int
-	deemph         bool
-	deemphA        int
-	nowLpr         int
-	prevLprIndex   int
-	modeDemod      func(fm *demodState)
-	agcEnable      bool
-	agc            agcState
-}
+var audioStream *portaudio.Stream
+var audioFifo = fifo.NewQueue()
 
-func polarDiscriminant(ar, aj, br, bj int) int {
-	var cr, cj int
-	var angle float64
-	cr = ar*br - aj*-bj
-	cj = aj*br + ar*-bj
-	angle = math.Atan2(float64(cj), float64(cr))
-	return int(angle / math.Pi * (1 << 14))
-}
+var demodulator demodcore.DemodCore
 
-func fastAtan2(y, x int) int {
-	var pi4, pi34, yabs, angle int
-	pi4 = 1 << 12
-	pi34 = 3 * (1 << 12) // note pi = 1<<14
-	if x == 0 && y == 0 {
-		return 0
-	}
-	yabs = y
-	if yabs < 0 {
-		yabs = -yabs
-	}
-	if x >= 0 {
-		angle = pi4 - pi4*(x-yabs)/(x+yabs)
+func ProcessAudio(out []float32) {
+	if audioFifo.Len() > 0 {
+		var z = audioFifo.Next().([]float32)
+		copy(out, z)
 	} else {
-		angle = pi34 - pi4*(x+yabs)/(yabs-x)
-	}
-	if y < 0 {
-		return -angle
-	}
-	return angle
-}
-
-func polarDiscFast(ar, aj, br, bj int) int {
-	var cr, cj int
-	cr = ar*br - aj*-bj
-	cj = aj*br + ar*-bj
-	return fastAtan2(cj, cr)
-}
-
-var d = demodState{
-	rateIn:       170000,
-	rateOut:      170000,
-	rateOut2:     32000,
-	customAtan:   1,
-	deemph:       true,
-	squelchLevel: 0,
-}
-
-func fmDemod(fm *demodState) {
-	var i, pcm int
-	lp := fm.lowpassed
-	lpLen := len(fm.lowpassed)
-	pr := fm.preR
-	pj := fm.preJ
-	for i = 2; i < (lpLen - 1); i += 2 {
-		switch fm.customAtan {
-		case 0:
-			pcm = polarDiscriminant(int(lp[i]), int(lp[i+1]), int(pr), int(pj))
-		case 1:
-			pcm = polarDiscFast(int(lp[i]), int(lp[i+1]), int(pr), int(pj))
+		for i := range out {
+			out[i] = 0
 		}
-		pr = lp[i]
-		pj = lp[i+1]
-
-		fm.lowpassed[i/2] = int16(pcm)
 	}
-	fm.preR = pr
-	fm.preJ = pj
-	fm.lowpassed = fm.lowpassed[:lpLen/2]
 }
 
-func lowPass(d *demodState) {
-	var i, i2 int
-	for i < len(d.lowpassed) {
-		d.nowR += d.lowpassed[i]
-		d.nowJ += d.lowpassed[i+1]
-		i += 2
-		d.prevIndex++
-		if d.prevIndex < d.downsample {
-			continue
-		}
-		d.lowpassed[i2] = d.nowR   // * d.output_scale;
-		d.lowpassed[i2+1] = d.nowJ // * d.output_scale;
-		d.prevIndex = 0
-		d.nowR = 0
-		d.nowJ = 0
-		i2 += 2
+func GetFinalData(input []int16) []complex64 {
+	var complexFloat = make([]complex64, len(input)/2)
+
+	for i := 0; i < len(complexFloat); i++ {
+		complexFloat[i] = complex(float32(input[2*i])/2048, float32(input[2*i+1])/2048)
 	}
-	d.lowpassed = d.lowpassed[:i2]
+
+	return complexFloat
 }
 
 func TestBladeRF(t *testing.T) {
@@ -160,15 +62,8 @@ func TestBladeRF(t *testing.T) {
 	Close(rf)
 }
 
-type echo struct {
-	*portaudio.Stream
-	buffer []float32
-	i      int
-}
-
 func TestStream(t *testing.T) {
 	var err error
-
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, os.Kill)
@@ -185,26 +80,30 @@ func TestStream(t *testing.T) {
 	rf := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
-	err = SetFrequency(&rf, IORX, 90800000)
+	err = SetFrequency(&rf, IORX, 96600000)
 	if err != nil {
 		log2.Fatal(err)
 	}
 
-	min, max, step, errRange := GetSampleRateRange(&rf, IORX)
-	if errRange != nil {
+	min, max, step, err := GetSampleRateRange(&rf, IORX)
+	if err != nil {
+		log2.Fatal(err)
+	}
+	fmt.Printf("Min: %d, Max: %d, Step: %d\n", min, max, step)
+	err = SetSampleRate(&rf, IORX, 4e6)
+	if err != nil {
+		log2.Fatal(err)
+	}
+	err = SyncConfig(&rf, RX_X1, SC16_Q11, 16, audioBufferSize, 8, 32)
+	if err != nil {
+		log2.Fatal(err)
+	}
+
+	actual, err := SetBandwidth(&rf, IORX, 240000)
+	if err != nil {
 		log2.Fatal(err)
 	} else {
-		fmt.Printf("Min: %d, Max: %d, Step: %d\n", min, max, step)
-	}
-
-	err = SetSampleRate(&rf, IORX, max)
-	if err != nil {
-		log2.Fatal(err)
-	}
-
-	err = SyncConfig(&rf, RX_X1, SC16_Q11, 32, 8192, 8, 3500)
-	if err != nil {
-		log2.Fatal(err)
+		println(actual)
 	}
 
 	err = EnableModule(&rf, RX)
@@ -212,51 +111,38 @@ func TestStream(t *testing.T) {
 		log2.Fatal(err)
 	}
 
-	err = SetGain(&rf, IORX, 9)
+	err = SetGainMode(&rf, IORX, Hybrid_AGC)
 	if err != nil {
 		log2.Fatal(err)
 	}
 
-	p := make([]int16, 10000)
+	demodulator = demodcore.MakeWBFMDemodulator(uint32(2e6), 80e3, 48000)
 
-	results := SyncRX(&rf)
-	//var complexFloat = make([]float32, 10000)
+	portaudio.Initialize()
+	h, _ := portaudio.DefaultHostApi()
 
-	//for i := 0; i < 10000 ; i++ {
-	//	complexFloat[i] = float32(results[2*i])/float32(2048) + float32(results[2*i+1])/float32(2048.0)
-	//}
+	p := portaudio.LowLatencyParameters(nil, h.DefaultOutputDevice)
+	p.Input.Channels = 0
+	p.Output.Channels = 1
+	p.SampleRate = 48000
+	p.FramesPerBuffer = audioBufferSize
 
-	d.lowpassed = results
-	fmDemod(&d)
-	lowPass(&d)
-
-	err = DisableModule(&rf, RX)
-	if err != nil {
-		log2.Fatal(err)
-	}
-
-	out := make([]int16, 8192)
-
-	e := &echo{buffer: make([]float32, 10000)}
-
-	e.Stream, err = portaudio.OpenDefaultStream(0, 1, 10000, len(d.lowpassed), &out)
-	defer stream.Close()
-
-	stream.Start()
-
-	defer stream.Close()
-	defer stream.Stop()
+	audioStream, _ = portaudio.OpenStream(p, ProcessAudio)
+	_ = audioStream.Start()
 
 	for {
-		out = d.lowpassed
-		stream.Write()
-		select {
-		case <-sig:
-			return
-		default:
+		out := demodulator.Work(GetFinalData(SyncRX(&rf, audioBufferSize)))
+
+		if out != nil {
+			var o = out.(demodcore.DemodData)
+			var nBf = make([]float32, len(o.Data))
+			copy(nBf, o.Data)
+			var buffs = len(nBf) / audioBufferSize
+			for i := 0; i < buffs; i++ {
+				audioFifo.Add(nBf[audioBufferSize*i : audioBufferSize*(i+1)])
+			}
 		}
 	}
-
 }
 
 func TestAsyncStream(t *testing.T) {
@@ -272,7 +158,7 @@ func TestAsyncStream(t *testing.T) {
 	rf := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
-	SetSampleRate(&rf, IORX, 1000000)
+	SetSampleRate(&rf, IORX, 4000000)
 	EnableModule(&rf, RX)
 
 	rxStream := InitStream(&rf, SC16_Q11, 32, 32768, 16)
