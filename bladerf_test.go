@@ -19,6 +19,11 @@ var audioFifo = fifo.NewQueue()
 
 var demodulator demodcore.DemodCore
 
+/*
+RX Gain Stage names: lna, rxvga1, rxvga2
+TX Gain Stage names: txvga1, txvga2
+*/
+
 func ProcessAudio(out []float32) {
 	if audioFifo.Len() > 0 {
 		var z = audioFifo.Next().([]float32)
@@ -60,6 +65,27 @@ func TestBladeRF(t *testing.T) {
 	stream := InitStream(&rf, SC16_Q11, 2, 1024, 1, cb)
 	StartStream(stream, RX_X1)
 	Close(rf)
+}
+
+func TestSetGainStage(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	stages := GetGainStages(&rf, IORX)
+	fmt.Println(len(stages))
+	bfRange, _ := GetGainStageRange(&rf, IORX, stages[0])
+	_ = SetGainStage(&rf, IORX, stages[0], int(bfRange.max))
+	gain, _ := GetGainStage(&rf, IORX, stages[0])
+	fmt.Println(gain)
 }
 
 func TestStream(t *testing.T) {
@@ -157,6 +183,39 @@ func cb(data []int16) {
 			audioFifo.Add(nBf[audioBufferSize*i : audioBufferSize*(i+1)])
 		}
 	}
+}
+
+func TestGetGainModes(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	GetGainModes(&rf, IORX)
+}
+
+func TestGetGainRange(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	bfRange, _ := GetGainRange(&rf, IORX)
+	fmt.Println(bfRange.max)
 }
 
 func TestAsyncStream(t *testing.T) {

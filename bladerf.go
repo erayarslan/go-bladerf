@@ -25,7 +25,7 @@ func cbGo(dev *C.struct_bladerf,
 
 	cb := (*Callback)(userData)
 
-	for i := 0; i < 4096; i++ {
+	for i := 0; i < cb.bufferSize; i++ {
 		cb.results = append(
 			cb.results,
 			int16(*((*C.int16_t)(unsafe.Pointer(uintptr(samples) + (size * uintptr(i)))))),
@@ -35,7 +35,7 @@ func cbGo(dev *C.struct_bladerf,
 	cb.cb(cb.results)
 	cb.results = nil
 
-	return C.malloc(C.size_t(size * 4096 * 2 * 1))
+	return C.malloc(C.size_t(size * cb.bufferSize * 2 * 1))
 }
 
 type GainMode int
@@ -168,6 +168,10 @@ type DevInfo struct {
 
 type Range struct {
 	bfRange *C.struct_bladerf_range
+	min     int64
+	max     int64
+	step    int64
+	scale   float64
 }
 
 type BladeRF struct {
@@ -180,6 +184,12 @@ type Module struct {
 
 type Stream struct {
 	stream *C.struct_bladerf_stream
+}
+
+type GainModes struct {
+	gainModes *C.struct_bladerf_gain_modes
+	name      string
+	mode      GainMode
 }
 
 func GetVersion() Version {
@@ -338,6 +348,28 @@ func SetGain(bladeRF *BladeRF, module IOModule, gain int) error {
 	return GetError(C.bladerf_set_gain((*bladeRF).bladeRF, C.bladerf_module(module), C.int(gain)))
 }
 
+func GetGain(bladeRF *BladeRF, module IOModule) (int, error) {
+	var gain C.bladerf_gain
+	err := GetError(C.bladerf_get_gain((*bladeRF).bladeRF, C.bladerf_module(module), &gain))
+	if err == nil {
+		return int(gain), nil
+	}
+
+	return int(gain), err
+}
+
+func GetGainStage(bladeRF *BladeRF, module IOModule, stage string) (int, error) {
+	val := C.CString(stage)
+	defer C.free(unsafe.Pointer(val))
+	var gain C.bladerf_gain
+	err := GetError(C.bladerf_get_gain_stage((*bladeRF).bladeRF, C.bladerf_module(module), val, &gain))
+	if err == nil {
+		return int(gain), nil
+	}
+
+	return int(gain), err
+}
+
 func GetGainMode(bladeRF *BladeRF, module IOModule) (GainMode, error) {
 	var mode C.bladerf_gain_mode
 
@@ -347,7 +379,119 @@ func GetGainMode(bladeRF *BladeRF, module IOModule) (GainMode, error) {
 		return result, nil
 	}
 
-	return -1, err
+	return result, err
+}
+
+func SetGainStage(bladeRF *BladeRF, module IOModule, stage string, gain int) error {
+	val := C.CString(stage)
+	defer C.free(unsafe.Pointer(val))
+	return GetError(C.bladerf_set_gain_stage((*bladeRF).bladeRF, C.bladerf_module(module), val, C.int(gain)))
+}
+
+func GetGainStageRange(bladeRF *BladeRF, module IOModule, stage string) (Range, error) {
+	var bfRange *C.struct_bladerf_range
+	val := C.CString(stage)
+	defer C.free(unsafe.Pointer(val))
+
+	err := GetError(C.bladerf_get_gain_stage_range((*bladeRF).bladeRF, C.bladerf_module(module), val, &bfRange))
+
+	if err == nil {
+		return Range{
+			bfRange: bfRange,
+			min:     int64(bfRange.min),
+			max:     int64(bfRange.max),
+			step:    int64(bfRange.step),
+			scale:   float64(bfRange.scale),
+		}, nil
+	}
+
+	return Range{}, err
+}
+
+func GetGainRange(bladeRF *BladeRF, module IOModule) (Range, error) {
+	var bfRange *C.struct_bladerf_range
+
+	err := GetError(C.bladerf_get_gain_range((*bladeRF).bladeRF, C.bladerf_module(module), &bfRange))
+
+	if err == nil {
+		return Range{
+			bfRange: bfRange,
+			min:     int64(bfRange.min),
+			max:     int64(bfRange.max),
+			step:    int64(bfRange.step),
+			scale:   float64(bfRange.scale),
+		}, nil
+	}
+
+	return Range{}, err
+}
+
+func GetNumberOfGainStages(bladeRF *BladeRF, module IOModule) int {
+	count := int(C.bladerf_get_gain_stages((*bladeRF).bladeRF, C.bladerf_module(module), nil, 0))
+
+	if count < 1 {
+		return 0
+	}
+
+	return count
+}
+
+func GetGainStages(bladeRF *BladeRF, module IOModule) []string {
+	var stage *C.char
+	var stages []string
+
+	count := int(C.bladerf_get_gain_stages(
+		(*bladeRF).bladeRF,
+		C.bladerf_module(module),
+		&stage,
+		C.ulong(GetNumberOfGainStages(bladeRF, module))),
+	)
+
+	if count < 1 {
+		return stages
+	}
+
+	first := C.GoString(stage)
+	stages = append(stages, first)
+
+	for i := 0; i < count-1; i++ {
+		size := unsafe.Sizeof(*stage)
+		stage = (*C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(stage)) + size))
+		stages = append(stages, C.GoString(stage))
+	}
+
+	return stages
+}
+
+func GetGainModes(bladeRF *BladeRF, module IOModule) []GainModes {
+	var gainMode *C.struct_bladerf_gain_modes
+	var gainModes []GainModes
+
+	count := int(C.bladerf_get_gain_modes((*bladeRF).bladeRF, C.bladerf_module(module), &gainMode))
+
+	if count < 1 {
+		return gainModes
+	}
+
+	first := GainModes{
+		gainModes: gainMode,
+		name:      C.GoString(gainMode.name),
+		mode:      GainMode(gainMode.mode),
+	}
+
+	gainModes = append(gainModes, first)
+
+	for i := 0; i < count-1; i++ {
+		size := unsafe.Sizeof(*gainMode)
+		gainMode = (*C.struct_bladerf_gain_modes)(unsafe.Pointer(uintptr(unsafe.Pointer(gainMode)) + size))
+		gainModes = append(gainModes, GainModes{
+			gainModes: gainMode,
+			name:      C.GoString(gainMode.name),
+			mode:      GainMode(gainMode.mode),
+		})
+	}
+
+	return gainModes
 }
 
 func SetGainMode(bladeRF *BladeRF, module IOModule, mode GainMode) error {
@@ -386,8 +530,9 @@ func SyncRX(bladeRF *BladeRF, bufferSize uintptr) []int16 {
 }
 
 type Callback struct {
-	cb      func(data []int16)
-	results []int16
+	cb         func(data []int16)
+	results    []int16
+	bufferSize int
 }
 
 func InitStream(bladeRF *BladeRF, format Format, numBuffers int, samplesPerBuffer int, numTransfers int, callback func(data []int16)) *Stream {
@@ -398,7 +543,7 @@ func InitStream(bladeRF *BladeRF, format Format, numBuffers int, samplesPerBuffe
 
 	var res []int16
 
-	cb := Callback{cb: callback, results: res}
+	cb := Callback{cb: callback, results: res, bufferSize: samplesPerBuffer}
 
 	C.bladerf_init_stream(
 		&((stream).stream),
