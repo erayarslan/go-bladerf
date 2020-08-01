@@ -57,7 +57,7 @@ func TestBladeRF(t *testing.T) {
 	fmt.Printf("Bootloaders Len: %d\n", len(bootloaders))
 
 	rf := Open()
-	stream := InitStream(&rf, SC16_Q11, 2, 1024, 1)
+	stream := InitStream(&rf, SC16_Q11, 2, 1024, 1, cb)
 	StartStream(stream, RX_X1)
 	Close(rf)
 }
@@ -145,8 +145,22 @@ func TestStream(t *testing.T) {
 	}
 }
 
+func cb(data []int16) {
+	out := demodulator.Work(GetFinalData(data))
+
+	if out != nil {
+		var o = out.(demodcore.DemodData)
+		var nBf = make([]float32, len(o.Data))
+		copy(nBf, o.Data)
+		var buffs = len(nBf) / audioBufferSize
+		for i := 0; i < buffs; i++ {
+			audioFifo.Add(nBf[audioBufferSize*i : audioBufferSize*(i+1)])
+		}
+	}
+}
+
 func TestAsyncStream(t *testing.T) {
-	log.SetVerbosity(log.Critical)
+	log.SetVerbosity(log.Debug)
 
 	devices := GetDeviceList()
 
@@ -158,14 +172,32 @@ func TestAsyncStream(t *testing.T) {
 	rf := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
-	SetSampleRate(&rf, IORX, 4000000)
-	EnableModule(&rf, RX)
+	_ = SetFrequency(&rf, IORX, 96600000)
+	_ = SetSampleRate(&rf, IORX, 4e6)
+	_, _ = SetBandwidth(&rf, IORX, 240000)
+	_ = SetGainMode(&rf, IORX, Hybrid_AGC)
+	_ = EnableModule(&rf, RX)
 
-	rxStream := InitStream(&rf, SC16_Q11, 32, 32768, 16)
+	rxStream := InitStream(&rf, SC16_Q11, 16, audioBufferSize, 8, cb)
 	defer DeInitStream(rxStream)
 
-	SetStreamTimeout(&rf, RX, 16)
-	GetStreamTimeout(&rf, RX)
+	_ = SetStreamTimeout(&rf, RX, 32)
+	timeout, _ := GetStreamTimeout(&rf, RX)
+	println(timeout)
 
-	StartStream(rxStream, RX_X1)
+	demodulator = demodcore.MakeWBFMDemodulator(uint32(2e6), 80e3, 48000)
+
+	portaudio.Initialize()
+	h, _ := portaudio.DefaultHostApi()
+
+	p := portaudio.LowLatencyParameters(nil, h.DefaultOutputDevice)
+	p.Input.Channels = 0
+	p.Output.Channels = 1
+	p.SampleRate = 48000
+	p.FramesPerBuffer = audioBufferSize
+
+	audioStream, _ = portaudio.OpenStream(p, ProcessAudio)
+	_ = audioStream.Start()
+
+	_ = StartStream(rxStream, RX_X1)
 }
