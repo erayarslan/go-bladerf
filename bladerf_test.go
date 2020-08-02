@@ -46,25 +46,45 @@ func GetFinalData(input []int16) []complex64 {
 }
 
 func TestBladeRF(t *testing.T) {
-	log.SetVerbosity(log.Critical)
+	log.SetVerbosity(log.Debug)
 
 	PrintVersion(GetVersion())
 
-	LoadFpga(Open(), "~/test") // Auto Close
-	Close(Open())
-	Close(OpenWithDevInfo(GetDevInfo()))
-	Close(OpenWithDeviceIdentifier("*:serial=NOTFOUND"))
-
 	devices := GetDeviceList()
 	fmt.Printf("Devices Len: %d\n", len(devices))
+	rf := OpenWithDevInfo(devices[0])
+	LoadFpga(rf, "/Users/erayarslan/Downloads/hostedxA4-latest.rbf")
+	Close(rf)
+
+	rf = Open()
+	info := GetDevInfo(&rf)
+	Close(rf)
+	Close(OpenWithDevInfo(GetDevInfo(&rf)))
+	Close(Open())
+	Close(OpenWithDeviceIdentifier("*:serial=" + info.serial))
+	Close(OpenWithDevInfo(GetDevInfoFromStr("*:serial=" + info.serial)))
+
+	result := DevInfoMatches(GetDevInfo(&rf), GetDevInfo(&rf))
+	fmt.Println("---------")
+	fmt.Println(result)
+	fmt.Println("---------")
+
+	result = DevStrMatches("*:serial=" + info.serial, GetDevInfo(&rf))
+	fmt.Println("---------")
+	fmt.Println(result)
+	fmt.Println("---------")
+
+	rf = Open()
 
 	bootloaders := GetBootloaderList()
 	fmt.Printf("Bootloaders Len: %d\n", len(bootloaders))
 
-	rf := Open()
-	stream := InitStream(&rf, SC16_Q11, 2, 1024, 1, cb)
-	StartStream(stream, RX_X1)
-	Close(rf)
+	err := EnableModule(&rf, RX)
+	if err != nil {
+		fmt.Println(err)
+	}
+	_ = InitStream(&rf, SC16_Q11, 16, audioBufferSize, 8, cb)
+	// _ = StartStream(stream, RX_X1)
 }
 
 func TestSetGainStage(t *testing.T) {

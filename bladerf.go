@@ -164,6 +164,7 @@ type Version struct {
 
 type DevInfo struct {
 	devInfo *C.struct_bladerf_devinfo
+	serial  string
 }
 
 type Range struct {
@@ -215,7 +216,6 @@ func LoadFpga(bladeRF BladeRF, imagePath string) {
 	defer C.free(unsafe.Pointer(path))
 
 	C.bladerf_load_fpga(bladeRF.bladeRF, path)
-	C.bladerf_close(bladeRF.bladeRF)
 }
 
 func FreeDeviceList(devInfo DevInfo) {
@@ -280,9 +280,42 @@ func CHANNEL_TX(ch int) int {
 	return (ch << 1) | TX_V
 }
 
-func GetDevInfo() DevInfo {
+func InitDevInfo() DevInfo {
 	var devInfo C.struct_bladerf_devinfo
 	C.bladerf_init_devinfo(&devInfo)
+	return DevInfo{devInfo: &devInfo}
+}
+
+func GetDevInfo(bladeRF *BladeRF) DevInfo {
+	var devInfo C.struct_bladerf_devinfo
+	C.bladerf_get_devinfo((*bladeRF).bladeRF, &devInfo)
+
+	var fs []rune
+	for i := range devInfo.serial {
+		if devInfo.serial[i] != 0 {
+			fs = append(fs, rune(devInfo.serial[i]))
+		}
+	}
+
+	info := DevInfo{devInfo: &devInfo, serial: string(fs)}
+	return info
+}
+
+func DevInfoMatches(a DevInfo, b DevInfo) bool {
+	return bool(C.bladerf_devinfo_matches(a.devInfo, b.devInfo))
+}
+
+func DevStrMatches(devstr string, info DevInfo) bool {
+	val := C.CString(devstr)
+	defer C.free(unsafe.Pointer(val))
+	return bool(C.bladerf_devstr_matches(val, info.devInfo))
+}
+
+func GetDevInfoFromStr(devstr string) DevInfo {
+	val := C.CString(devstr)
+	defer C.free(unsafe.Pointer(val))
+	var devInfo C.struct_bladerf_devinfo
+	C.bladerf_get_devinfo_from_str(val, &devInfo)
 	return DevInfo{devInfo: &devInfo}
 }
 
