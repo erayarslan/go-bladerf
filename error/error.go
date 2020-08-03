@@ -3,36 +3,32 @@ package error
 // #include <libbladeRF.h>
 import "C"
 
-type Error int
+type Code int
 
 const (
-	Unexpected  Error = -1
-	Range       Error = -2
-	Inval       Error = -3
-	Mem         Error = -4
-	Io          Error = -5
-	Timeout     Error = -6
-	Nodev       Error = -7
-	Unsupported Error = -8
-	Misaligned  Error = -9
-	Checksum    Error = -10
-	NoFile      Error = -11
-	UpdateFpga  Error = -12
-	UpdateFw    Error = -13
-	TimePast    Error = -14
-	QueueFull   Error = -15
-	FpgaOp      Error = -16
-	Permission  Error = -17
-	WouldBlock  Error = -18
-	NotInit     Error = -19
+	Unexpected  Code = -1
+	Range       Code = -2
+	Inval       Code = -3
+	Mem         Code = -4
+	Io          Code = -5
+	Timeout     Code = -6
+	Nodev       Code = -7
+	Unsupported Code = -8
+	Misaligned  Code = -9
+	Checksum    Code = -10
+	NoFile      Code = -11
+	UpdateFpga  Code = -12
+	UpdateFw    Code = -13
+	TimePast    Code = -14
+	QueueFull   Code = -15
+	FpgaOp      Code = -16
+	Permission  Code = -17
+	WouldBlock  Code = -18
+	NotInit     Code = -19
 )
 
-func (err Error) Error() string {
-	return err.String()
-}
-
-func (err Error) String() string {
-	switch err {
+func CodeToString(code Code) string {
+	switch code {
 	case Unexpected:
 		return "An unexpected failure occurred"
 	case Range:
@@ -74,4 +70,20 @@ func (err Error) String() string {
 	}
 
 	return "InvalidError"
+}
+
+type errorString struct {
+	s string
+}
+
+func (e *errorString) Error() string {
+	return e.s
+}
+
+func New(code int) error {
+	if code == 0 {
+		return nil
+	}
+
+	return &errorString{s: CodeToString(Code(code))}
 }

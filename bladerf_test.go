@@ -1,6 +1,10 @@
 package bladerf
 
 import (
+	"bladerf/channel_layout"
+	"bladerf/direction"
+	"bladerf/format"
+	"bladerf/gain_mode"
 	"bladerf/log"
 	"fmt"
 	"github.com/gordonklaus/portaudio"
@@ -83,7 +87,7 @@ func TestBladeRF(t *testing.T) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	_ = InitStream(&rf, SC16_Q11, 16, audioBufferSize, 8, cb)
+	_ = InitStream(&rf, format.SC16_Q11, 16, audioBufferSize, 8, cb)
 	// _ = StartStream(stream, RX_X1)
 }
 
@@ -129,11 +133,11 @@ func TestStream(t *testing.T) {
 	min, max, step, _ := GetSampleRateRange(&rf, channel)
 	fmt.Printf("Min: %d, Max: %d, Step: %d\n", min, max, step)
 	_ = SetSampleRate(&rf, channel, 4e6)
-	_ = SyncConfig(&rf, RX_X2, SC16_Q11, 16, audioBufferSize, 8, 32)
+	_ = SyncConfig(&rf, channel_layout.RX_X2, format.SC16_Q11, 16, audioBufferSize, 8, 32)
 	actual, _ := SetBandwidth(&rf, channel, 240000)
 	fmt.Println(actual)
 	_ = EnableModule(&rf, channel)
-	_ = SetGainMode(&rf, channel, Hybrid_AGC)
+	_ = SetGainMode(&rf, channel, gain_mode.Hybrid_AGC)
 
 	demodulator = demodcore.MakeWBFMDemodulator(uint32(2e6), 80e3, 48000)
 
@@ -196,7 +200,7 @@ func TestGetGainModes(t *testing.T) {
 	rf := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
-	GetGainModes(&rf, IORX)
+	GetGainModes(&rf, CHANNEL_RX(1))
 }
 
 func TestGetGainRange(t *testing.T) {
@@ -240,11 +244,11 @@ func TestAsyncStream(t *testing.T) {
 	//_ = SetGainMode(&rf, channel, Hybrid_AGC)
 	_ = EnableModule(&rf, channel)
 
-	rxStream := InitStream(&rf, SC16_Q11, 16, audioBufferSize, 8, cb)
+	rxStream := InitStream(&rf, format.SC16_Q11, 16, audioBufferSize, 8, cb)
 	defer DeInitStream(rxStream)
 
-	_ = SetStreamTimeout(&rf, RX, 32)
-	timeout, _ := GetStreamTimeout(&rf, RX)
+	_ = SetStreamTimeout(&rf, direction.RX, 32)
+	timeout, _ := GetStreamTimeout(&rf, direction.RX)
 	println(timeout)
 
 	demodulator = demodcore.MakeWBFMDemodulator(uint32(2e6), 80e3, 48000)
@@ -261,9 +265,8 @@ func TestAsyncStream(t *testing.T) {
 	audioStream, _ = portaudio.OpenStream(p, ProcessAudio)
 	_ = audioStream.Start()
 
-
 	go func() {
-		_ = StartStream(rxStream, RX_X2)
+		_ = StartStream(rxStream, channel_layout.RX_X2)
 	}()
 
 	<-sig

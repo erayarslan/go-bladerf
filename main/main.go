@@ -2,6 +2,9 @@ package main
 
 import (
 	bf "bladerf"
+	"bladerf/channel_layout"
+	"bladerf/direction"
+	"bladerf/format"
 	"bladerf/log"
 	"fmt"
 	"github.com/gordonklaus/portaudio"
@@ -12,8 +15,8 @@ import (
 	"syscall"
 )
 
-
 const audioBufferSize = 8192 / 4
+
 var demodulator demodcore.DemodCore
 var audioStream *portaudio.Stream
 var audioFifo = fifo.NewQueue()
@@ -77,11 +80,11 @@ func main() {
 	//_ = SetGainMode(&rf, channel, Hybrid_AGC)
 	_ = bf.EnableModule(&rf, channel)
 
-	rxStream := bf.InitStream(&rf, bf.SC16_Q11, 16, audioBufferSize, 8, cb)
+	rxStream := bf.InitStream(&rf, format.SC16_Q11, 16, audioBufferSize, 8, cb)
 	defer bf.DeInitStream(rxStream)
 
-	_ = bf.SetStreamTimeout(&rf, bf.RX, 32)
-	timeout, _ := bf.GetStreamTimeout(&rf, bf.RX)
+	_ = bf.SetStreamTimeout(&rf, direction.RX, 32)
+	timeout, _ := bf.GetStreamTimeout(&rf, direction.RX)
 	println(timeout)
 
 	demodulator = demodcore.MakeWBFMDemodulator(uint32(2e6), 80e3, 48000)
@@ -98,9 +101,8 @@ func main() {
 	audioStream, _ = portaudio.OpenStream(p, ProcessAudio)
 	_ = audioStream.Start()
 
-
 	go func() {
-		_ = bf.StartStream(rxStream, bf.RX_X2)
+		_ = bf.StartStream(rxStream, channel_layout.RX_X2)
 	}()
 
 	<-sig

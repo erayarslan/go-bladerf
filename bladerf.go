@@ -11,13 +11,24 @@ import "C"
 // extern void* cbGo(struct bladerf *dev, struct bladerf_stream *stream, struct bladerf_metadata *md, void* samples, size_t num_samples, void* user_data);
 import "C"
 import (
-	error2 "bladerf/error"
+	"bladerf/channel_layout"
+	"bladerf/direction"
+	exception "bladerf/error"
+	"bladerf/format"
+	"bladerf/gain_mode"
+	"bladerf/loopback"
 	"fmt"
 	"github.com/mattn/go-pointer"
 	"unsafe"
 )
 
-const size = 2
+func GetError(code C.int) error {
+	return exception.New(int(code))
+}
+
+var buff *C.int16_t
+
+const size = unsafe.Sizeof(*buff)
 
 //export cbGo
 func cbGo(dev *C.struct_bladerf,
@@ -37,106 +48,7 @@ func cbGo(dev *C.struct_bladerf,
 	return samples // C.malloc(C.size_t(size * cb.bufferSize * 2 * 1)) allocate always fcjinf new
 }
 
-type GainMode int
-type Backend int
-type Direction int
-type ChannelLayout int
-type Correction int
-type Format int
-type Loopback int
-type RXMux int
-type ClockSelect int
-type PowerSource int
-type PMICRegister int
-type IOModule int
 type Channel int
-
-const (
-	IOTX IOModule = C.BLADERF_MODULE_TX
-	IORX IOModule = C.BLADERF_MODULE_RX
-)
-
-const (
-	Default        GainMode = C.BLADERF_GAIN_DEFAULT
-	Manual         GainMode = C.BLADERF_GAIN_MGC
-	FastAttack_AGC GainMode = C.BLADERF_GAIN_FASTATTACK_AGC
-	SlowAttack_AGC GainMode = C.BLADERF_GAIN_SLOWATTACK_AGC
-	Hybrid_AGC     GainMode = C.BLADERF_GAIN_HYBRID_AGC
-)
-
-const (
-	Any     Backend = C.BLADERF_BACKEND_ANY
-	Linux   Backend = C.BLADERF_BACKEND_LINUX
-	LibUSB  Backend = C.BLADERF_BACKEND_LIBUSB
-	Cypress Backend = C.BLADERF_BACKEND_CYPRESS
-	Dummy   Backend = C.BLADERF_BACKEND_DUMMY
-)
-
-const (
-	TX Direction = C.BLADERF_TX
-	RX Direction = C.BLADERF_RX
-)
-
-const (
-	RX_X1 ChannelLayout = C.BLADERF_RX_X1
-	TX_X1 ChannelLayout = C.BLADERF_TX_X1
-	RX_X2 ChannelLayout = C.BLADERF_RX_X2
-	TX_X2 ChannelLayout = C.BLADERF_TX_X2
-)
-
-const (
-	DCOFF_I Correction = C.BLADERF_CORR_DCOFF_I
-	DCOFF_Q Correction = C.BLADERF_CORR_DCOFF_Q
-	PHASE   Correction = C.BLADERF_CORR_PHASE
-	GAIN    Correction = C.BLADERF_CORR_GAIN
-)
-
-const (
-	SC16_Q11      Format = C.BLADERF_FORMAT_SC16_Q11
-	SC16_Q11_META Format = C.BLADERF_FORMAT_SC16_Q11_META
-)
-
-const (
-	Disabled         Loopback = C.BLADERF_LB_NONE
-	Firmware         Loopback = C.BLADERF_LB_FIRMWARE
-	BB_TXLPF_RXVGA2  Loopback = C.BLADERF_LB_BB_TXLPF_RXVGA2
-	BB_TXVGA1_RXVGA2 Loopback = C.BLADERF_LB_BB_TXVGA1_RXVGA2
-	BB_TXLPF_RXLPF   Loopback = C.BLADERF_LB_BB_TXLPF_RXLPF
-	BB_TXVGA1_RXLPF  Loopback = C.BLADERF_LB_BB_TXVGA1_RXLPF
-	RF_LNA1          Loopback = C.BLADERF_LB_RF_LNA1
-	RF_LNA2          Loopback = C.BLADERF_LB_RF_LNA2
-	RF_LNA3          Loopback = C.BLADERF_LB_RF_LNA3
-	RFIC_BIST        Loopback = C.BLADERF_LB_RFIC_BIST
-)
-
-const (
-	Invalid          RXMux = C.BLADERF_RX_MUX_INVALID
-	Baseband         RXMux = C.BLADERF_RX_MUX_BASEBAND
-	Counter_12bit    RXMux = C.BLADERF_RX_MUX_12BIT_COUNTER
-	Counter_32bit    RXMux = C.BLADERF_RX_MUX_32BIT_COUNTER
-	Digital_Loopback RXMux = C.BLADERF_RX_MUX_DIGITAL_LOOPBACK
-)
-
-const (
-	ClockSelectUnknown  ClockSelect = -99
-	ClockSelectVCTCXO   ClockSelect = C.CLOCK_SELECT_ONBOARD
-	ClockSelectExternal ClockSelect = C.CLOCK_SELECT_EXTERNAL
-)
-
-const (
-	PowerSourceUnknown   PowerSource = C.BLADERF_UNKNOWN
-	PowerSourceDC_Barrel PowerSource = C.BLADERF_PS_DC
-	PowerSourceUSB_VBUS  PowerSource = C.BLADERF_PS_USB_VBUS
-)
-
-const (
-	Configuration PMICRegister = C.BLADERF_PMIC_CONFIGURATION
-	Voltage_shunt PMICRegister = C.BLADERF_PMIC_VOLTAGE_SHUNT
-	Voltage_bus   PMICRegister = C.BLADERF_PMIC_VOLTAGE_BUS
-	Power         PMICRegister = C.BLADERF_PMIC_POWER
-	Current       PMICRegister = C.BLADERF_PMIC_CURRENT
-	Calibration   PMICRegister = C.BLADERF_PMIC_CALIBRATION
-)
 
 const (
 	RX_V int = 0x0
@@ -148,12 +60,6 @@ const (
 	BLADERF_REFIN_DEFAULT    = 10.0e6
 	BLADERF_SERIAL_LENGTH    = 33
 )
-
-func checkError(e error) {
-	if e != nil {
-		fmt.Printf(e.Error())
-	}
-}
 
 type Version struct {
 	version  *C.struct_bladerf_version
@@ -191,7 +97,7 @@ type Stream struct {
 type GainModes struct {
 	gainModes *C.struct_bladerf_gain_modes
 	name      string
-	mode      GainMode
+	mode      gain_mode.GainMode
 }
 
 func GetVersion() Version {
@@ -202,14 +108,6 @@ func GetVersion() Version {
 
 func PrintVersion(version Version) {
 	fmt.Printf("v%d.%d.%d (\"%s\")", version.major, version.minor, version.patch, version.describe)
-}
-
-func GetError(e C.int) error {
-	if e == 0 {
-		return nil
-	}
-
-	return error2.Error(e)
 }
 
 func LoadFpga(bladeRF BladeRF, imagePath string) {
@@ -342,7 +240,7 @@ func Close(bladeRF BladeRF) {
 	C.bladerf_close(bladeRF.bladeRF)
 }
 
-func SetLoopback(bladeRF *BladeRF, loopback Loopback) {
+func SetLoopback(bladeRF *BladeRF, loopback loopback.Loopback) {
 	C.bladerf_set_loopback((*bladeRF).bladeRF, C.bladerf_loopback(loopback))
 }
 
@@ -404,11 +302,11 @@ func GetGainStage(bladeRF *BladeRF, channel Channel, stage string) (int, error) 
 	return int(gain), err
 }
 
-func GetGainMode(bladeRF *BladeRF, channel Channel) (GainMode, error) {
+func GetGainMode(bladeRF *BladeRF, channel Channel) (gain_mode.GainMode, error) {
 	var mode C.bladerf_gain_mode
 
 	err := GetError(C.bladerf_get_gain_mode((*bladeRF).bladeRF, C.bladerf_channel(channel), &mode))
-	result := GainMode(int(mode))
+	result := gain_mode.GainMode(int(mode))
 	if err == nil {
 		return result, nil
 	}
@@ -497,11 +395,11 @@ func GetGainStages(bladeRF *BladeRF, channel Channel) []string {
 	return stages
 }
 
-func GetGainModes(bladeRF *BladeRF, module IOModule) []GainModes {
+func GetGainModes(bladeRF *BladeRF, channel Channel) []GainModes {
 	var gainMode *C.struct_bladerf_gain_modes
 	var gainModes []GainModes
 
-	count := int(C.bladerf_get_gain_modes((*bladeRF).bladeRF, C.bladerf_module(module), &gainMode))
+	count := int(C.bladerf_get_gain_modes((*bladeRF).bladeRF, C.bladerf_channel(channel), &gainMode))
 
 	if count < 1 {
 		return gainModes
@@ -510,7 +408,7 @@ func GetGainModes(bladeRF *BladeRF, module IOModule) []GainModes {
 	first := GainModes{
 		gainModes: gainMode,
 		name:      C.GoString(gainMode.name),
-		mode:      GainMode(gainMode.mode),
+		mode:      gain_mode.GainMode(gainMode.mode),
 	}
 
 	gainModes = append(gainModes, first)
@@ -521,14 +419,14 @@ func GetGainModes(bladeRF *BladeRF, module IOModule) []GainModes {
 		gainModes = append(gainModes, GainModes{
 			gainModes: gainMode,
 			name:      C.GoString(gainMode.name),
-			mode:      GainMode(gainMode.mode),
+			mode:      gain_mode.GainMode(gainMode.mode),
 		})
 	}
 
 	return gainModes
 }
 
-func SetGainMode(bladeRF *BladeRF, channel Channel, mode GainMode) error {
+func SetGainMode(bladeRF *BladeRF, channel Channel, mode gain_mode.GainMode) error {
 	return GetError(C.bladerf_set_gain_mode((*bladeRF).bladeRF, C.bladerf_channel(channel), C.bladerf_gain_mode(mode)))
 }
 
@@ -543,8 +441,6 @@ func DisableModule(bladeRF *BladeRF, channel Channel) error {
 func SyncRX(bladeRF *BladeRF, bufferSize uintptr) []int16 {
 	var metadata C.struct_bladerf_metadata
 
-	// var buff *C.int16_t
-	// size := unsafe.Sizeof(*buff)
 	start := C.malloc(C.size_t(size * bufferSize * 2 * 1))
 
 	var err error
@@ -569,7 +465,7 @@ type Callback struct {
 	bufferSize int
 }
 
-func InitStream(bladeRF *BladeRF, format Format, numBuffers int, samplesPerBuffer int, numTransfers int, callback func(data []int16)) *Stream {
+func InitStream(bladeRF *BladeRF, format format.Format, numBuffers int, samplesPerBuffer int, numTransfers int, callback func(data []int16)) *Stream {
 	var buffers *unsafe.Pointer
 	var rxStream *C.struct_bladerf_stream
 
@@ -602,21 +498,20 @@ func DeInitStream(stream *Stream) {
 	C.bladerf_deinit_stream(stream.stream)
 }
 
-func GetStreamTimeout(bladeRF *BladeRF, direction Direction) (int, error) {
+func GetStreamTimeout(bladeRF *BladeRF, direction direction.Direction) (int, error) {
 	var timeout C.uint
 	err := GetError(C.bladerf_get_stream_timeout((*bladeRF).bladeRF, C.bladerf_direction(direction), &timeout))
 	return int(timeout), err
 }
 
-func SetStreamTimeout(bladeRF *BladeRF, direction Direction, timeout int) error {
+func SetStreamTimeout(bladeRF *BladeRF, direction direction.Direction, timeout int) error {
 	return GetError(C.bladerf_set_stream_timeout((*bladeRF).bladeRF, C.bladerf_direction(direction), C.uint(timeout)))
 }
 
-func SyncConfig(bladeRF *BladeRF, layout ChannelLayout, format Format, numBuffers int, bufferSize int, numTransfers int, timeout int) error {
-	err := GetError(C.bladerf_sync_config((*bladeRF).bladeRF, C.bladerf_channel_layout(layout), C.bladerf_format(format), C.uint(numBuffers), C.uint(bufferSize), C.uint(numTransfers), C.uint(timeout)))
-	return err
+func SyncConfig(bladeRF *BladeRF, layout channel_layout.ChannelLayout, format format.Format, numBuffers int, bufferSize int, numTransfers int, timeout int) error {
+	return GetError(C.bladerf_sync_config((*bladeRF).bladeRF, C.bladerf_channel_layout(layout), C.bladerf_format(format), C.uint(numBuffers), C.uint(bufferSize), C.uint(numTransfers), C.uint(timeout)))
 }
 
-func StartStream(stream *Stream, layout ChannelLayout) error {
+func StartStream(stream *Stream, layout channel_layout.ChannelLayout) error {
 	return GetError(C.bladerf_stream(stream.stream, C.bladerf_channel_layout(layout)))
 }
