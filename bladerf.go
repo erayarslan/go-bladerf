@@ -1,6 +1,5 @@
 package bladerf
 
-// #include "macro_wrapper.h"
 import "C"
 
 // #cgo darwin CFLAGS: -I/usr/local/include
@@ -60,45 +59,6 @@ const (
 	BLADERF_REFIN_DEFAULT    = 10.0e6
 	BLADERF_SERIAL_LENGTH    = 33
 )
-
-type Version struct {
-	version  *C.struct_bladerf_version
-	major    int
-	minor    int
-	patch    int
-	describe string
-}
-
-type DevInfo struct {
-	devInfo *C.struct_bladerf_devinfo
-	serial  string
-}
-
-type Range struct {
-	bfRange *C.struct_bladerf_range
-	min     int64
-	max     int64
-	step    int64
-	scale   float64
-}
-
-type BladeRF struct {
-	bladeRF *C.struct_bladerf
-}
-
-type Module struct {
-	module *C.struct_bladerf_module
-}
-
-type Stream struct {
-	stream *C.struct_bladerf_stream
-}
-
-type GainModes struct {
-	gainModes *C.struct_bladerf_gain_modes
-	name      string
-	mode      gain_mode.GainMode
-}
 
 func GetVersion() Version {
 	var version C.struct_bladerf_version
@@ -169,14 +129,6 @@ func GetBootloaderList() []DevInfo {
 	}
 
 	return devices
-}
-
-func CHANNEL_RX(ch int) Channel {
-	return Channel(C.ChannelRX(C.int(ch)))
-}
-
-func CHANNEL_TX(ch int) Channel {
-	return Channel(C.ChannelTX(C.int(ch)))
 }
 
 func InitDevInfo() DevInfo {
