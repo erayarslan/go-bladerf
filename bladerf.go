@@ -1,5 +1,8 @@
 package bladerf
 
+// #include "macro_wrapper.h"
+import "C"
+
 // #cgo darwin CFLAGS: -I/usr/local/include
 // #cgo darwin LDFLAGS: -L/usr/local/lib
 // #cgo LDFLAGS: -lbladeRF
@@ -50,6 +53,7 @@ type ClockSelect int
 type PowerSource int
 type PMICRegister int
 type IOModule int
+type Channel int
 
 const (
 	IOTX IOModule = C.BLADERF_MODULE_TX
@@ -116,6 +120,7 @@ const (
 	Counter_32bit    RXMux = C.BLADERF_RX_MUX_32BIT_COUNTER
 	Digital_Loopback RXMux = C.BLADERF_RX_MUX_DIGITAL_LOOPBACK
 )
+
 const (
 	ClockSelectUnknown  ClockSelect = -99
 	ClockSelectVCTCXO   ClockSelect = C.CLOCK_SELECT_ONBOARD
@@ -272,12 +277,12 @@ func GetBootloaderList() []DevInfo {
 	return devices
 }
 
-func CHANNEL_RX(ch int) int {
-	return (ch << 1) | RX_V
+func CHANNEL_RX(ch int) Channel {
+	return Channel(C.ChannelRX(C.int(ch)))
 }
 
-func CHANNEL_TX(ch int) int {
-	return (ch << 1) | TX_V
+func CHANNEL_TX(ch int) Channel {
+	return Channel(C.ChannelTX(C.int(ch)))
 }
 
 func InitDevInfo() DevInfo {
@@ -345,13 +350,13 @@ func SetLoopback(bladeRF *BladeRF, loopback Loopback) {
 	C.bladerf_set_loopback((*bladeRF).bladeRF, C.bladerf_loopback(loopback))
 }
 
-func SetFrequency(bladeRF *BladeRF, module IOModule, frequency int) error {
-	return GetError(C.bladerf_set_frequency((*bladeRF).bladeRF, C.bladerf_module(module), C.ulonglong(frequency)))
+func SetFrequency(bladeRF *BladeRF, channel Channel, frequency int) error {
+	return GetError(C.bladerf_set_frequency((*bladeRF).bladeRF, C.bladerf_channel(channel), C.ulonglong(frequency)))
 }
 
-func SetSampleRate(bladeRF *BladeRF, module IOModule, sampleRate int) error {
+func SetSampleRate(bladeRF *BladeRF, channel Channel, sampleRate int) error {
 	var actual C.uint
-	err := GetError(C.bladerf_set_sample_rate((*bladeRF).bladeRF, C.bladerf_module(module), C.uint(sampleRate), &actual))
+	err := GetError(C.bladerf_set_sample_rate((*bladeRF).bladeRF, C.bladerf_channel(channel), C.uint(sampleRate), &actual))
 
 	if err == nil {
 		println(uint(actual))
@@ -360,10 +365,10 @@ func SetSampleRate(bladeRF *BladeRF, module IOModule, sampleRate int) error {
 	return err
 }
 
-func GetSampleRateRange(bladeRF *BladeRF, module IOModule) (int, int, int, error) {
+func GetSampleRateRange(bladeRF *BladeRF, channel Channel) (int, int, int, error) {
 	var bfRange *C.struct_bladerf_range
 
-	err := GetError(C.bladerf_get_sample_rate_range((*bladeRF).bladeRF, C.bladerf_module(module), &bfRange))
+	err := GetError(C.bladerf_get_sample_rate_range((*bladeRF).bladeRF, C.bladerf_channel(channel), &bfRange))
 
 	if err != nil {
 		return 0, 0, 0, err
@@ -372,18 +377,18 @@ func GetSampleRateRange(bladeRF *BladeRF, module IOModule) (int, int, int, error
 	return int(bfRange.min), int(bfRange.max), int(bfRange.step), nil
 }
 
-func SetBandwidth(bladeRF *BladeRF, module IOModule, bandwidth int) (int, error) {
+func SetBandwidth(bladeRF *BladeRF, channel Channel, bandwidth int) (int, error) {
 	var actual C.bladerf_bandwidth
-	return int(actual), GetError(C.bladerf_set_bandwidth((*bladeRF).bladeRF, C.bladerf_module(module), C.uint(bandwidth), &actual))
+	return int(actual), GetError(C.bladerf_set_bandwidth((*bladeRF).bladeRF, C.bladerf_channel(channel), C.uint(bandwidth), &actual))
 }
 
-func SetGain(bladeRF *BladeRF, module IOModule, gain int) error {
-	return GetError(C.bladerf_set_gain((*bladeRF).bladeRF, C.bladerf_module(module), C.int(gain)))
+func SetGain(bladeRF *BladeRF, channel Channel, gain int) error {
+	return GetError(C.bladerf_set_gain((*bladeRF).bladeRF, C.bladerf_channel(channel), C.int(gain)))
 }
 
-func GetGain(bladeRF *BladeRF, module IOModule) (int, error) {
+func GetGain(bladeRF *BladeRF, channel Channel) (int, error) {
 	var gain C.bladerf_gain
-	err := GetError(C.bladerf_get_gain((*bladeRF).bladeRF, C.bladerf_module(module), &gain))
+	err := GetError(C.bladerf_get_gain((*bladeRF).bladeRF, C.bladerf_channel(channel), &gain))
 	if err == nil {
 		return int(gain), nil
 	}
@@ -391,11 +396,11 @@ func GetGain(bladeRF *BladeRF, module IOModule) (int, error) {
 	return int(gain), err
 }
 
-func GetGainStage(bladeRF *BladeRF, module IOModule, stage string) (int, error) {
+func GetGainStage(bladeRF *BladeRF, channel Channel, stage string) (int, error) {
 	val := C.CString(stage)
 	defer C.free(unsafe.Pointer(val))
 	var gain C.bladerf_gain
-	err := GetError(C.bladerf_get_gain_stage((*bladeRF).bladeRF, C.bladerf_module(module), val, &gain))
+	err := GetError(C.bladerf_get_gain_stage((*bladeRF).bladeRF, C.bladerf_channel(channel), val, &gain))
 	if err == nil {
 		return int(gain), nil
 	}
@@ -403,10 +408,10 @@ func GetGainStage(bladeRF *BladeRF, module IOModule, stage string) (int, error) 
 	return int(gain), err
 }
 
-func GetGainMode(bladeRF *BladeRF, module IOModule) (GainMode, error) {
+func GetGainMode(bladeRF *BladeRF, channel Channel) (GainMode, error) {
 	var mode C.bladerf_gain_mode
 
-	err := GetError(C.bladerf_get_gain_mode((*bladeRF).bladeRF, C.bladerf_module(module), &mode))
+	err := GetError(C.bladerf_get_gain_mode((*bladeRF).bladeRF, C.bladerf_channel(channel), &mode))
 	result := GainMode(int(mode))
 	if err == nil {
 		return result, nil
@@ -415,18 +420,18 @@ func GetGainMode(bladeRF *BladeRF, module IOModule) (GainMode, error) {
 	return result, err
 }
 
-func SetGainStage(bladeRF *BladeRF, module IOModule, stage string, gain int) error {
+func SetGainStage(bladeRF *BladeRF, channel Channel, stage string, gain int) error {
 	val := C.CString(stage)
 	defer C.free(unsafe.Pointer(val))
-	return GetError(C.bladerf_set_gain_stage((*bladeRF).bladeRF, C.bladerf_module(module), val, C.int(gain)))
+	return GetError(C.bladerf_set_gain_stage((*bladeRF).bladeRF, C.bladerf_channel(channel), val, C.int(gain)))
 }
 
-func GetGainStageRange(bladeRF *BladeRF, module IOModule, stage string) (Range, error) {
+func GetGainStageRange(bladeRF *BladeRF, channel Channel, stage string) (Range, error) {
 	var bfRange *C.struct_bladerf_range
 	val := C.CString(stage)
 	defer C.free(unsafe.Pointer(val))
 
-	err := GetError(C.bladerf_get_gain_stage_range((*bladeRF).bladeRF, C.bladerf_module(module), val, &bfRange))
+	err := GetError(C.bladerf_get_gain_stage_range((*bladeRF).bladeRF, C.bladerf_channel(channel), val, &bfRange))
 
 	if err == nil {
 		return Range{
@@ -441,10 +446,10 @@ func GetGainStageRange(bladeRF *BladeRF, module IOModule, stage string) (Range, 
 	return Range{}, err
 }
 
-func GetGainRange(bladeRF *BladeRF, module IOModule) (Range, error) {
+func GetGainRange(bladeRF *BladeRF, channel Channel) (Range, error) {
 	var bfRange *C.struct_bladerf_range
 
-	err := GetError(C.bladerf_get_gain_range((*bladeRF).bladeRF, C.bladerf_module(module), &bfRange))
+	err := GetError(C.bladerf_get_gain_range((*bladeRF).bladeRF, C.bladerf_channel(channel), &bfRange))
 
 	if err == nil {
 		return Range{
@@ -459,8 +464,8 @@ func GetGainRange(bladeRF *BladeRF, module IOModule) (Range, error) {
 	return Range{}, err
 }
 
-func GetNumberOfGainStages(bladeRF *BladeRF, module IOModule) int {
-	count := int(C.bladerf_get_gain_stages((*bladeRF).bladeRF, C.bladerf_module(module), nil, 0))
+func GetNumberOfGainStages(bladeRF *BladeRF, channel Channel) int {
+	count := int(C.bladerf_get_gain_stages((*bladeRF).bladeRF, C.bladerf_channel(channel), nil, 0))
 
 	if count < 1 {
 		return 0
@@ -469,15 +474,15 @@ func GetNumberOfGainStages(bladeRF *BladeRF, module IOModule) int {
 	return count
 }
 
-func GetGainStages(bladeRF *BladeRF, module IOModule) []string {
+func GetGainStages(bladeRF *BladeRF, channel Channel) []string {
 	var stage *C.char
 	var stages []string
 
 	count := int(C.bladerf_get_gain_stages(
 		(*bladeRF).bladeRF,
-		C.bladerf_module(module),
+		C.bladerf_channel(channel),
 		&stage,
-		C.ulong(GetNumberOfGainStages(bladeRF, module))),
+		C.ulong(GetNumberOfGainStages(bladeRF, channel))),
 	)
 
 	if count < 1 {
@@ -527,16 +532,16 @@ func GetGainModes(bladeRF *BladeRF, module IOModule) []GainModes {
 	return gainModes
 }
 
-func SetGainMode(bladeRF *BladeRF, module IOModule, mode GainMode) error {
-	return GetError(C.bladerf_set_gain_mode((*bladeRF).bladeRF, C.bladerf_module(module), C.bladerf_gain_mode(mode)))
+func SetGainMode(bladeRF *BladeRF, channel Channel, mode GainMode) error {
+	return GetError(C.bladerf_set_gain_mode((*bladeRF).bladeRF, C.bladerf_channel(channel), C.bladerf_gain_mode(mode)))
 }
 
-func EnableModule(bladeRF *BladeRF, direction Direction) error {
-	return GetError(C.bladerf_enable_module((*bladeRF).bladeRF, C.bladerf_module(direction), true))
+func EnableModule(bladeRF *BladeRF, channel Channel) error {
+	return GetError(C.bladerf_enable_module((*bladeRF).bladeRF, C.bladerf_channel(channel), true))
 }
 
-func DisableModule(bladeRF *BladeRF, direction Direction) error {
-	return GetError(C.bladerf_enable_module((*bladeRF).bladeRF, C.bladerf_module(direction), false))
+func DisableModule(bladeRF *BladeRF, channel Channel) error {
+	return GetError(C.bladerf_enable_module((*bladeRF).bladeRF, C.bladerf_channel(channel), false))
 }
 
 func SyncRX(bladeRF *BladeRF, bufferSize uintptr) []int16 {
@@ -582,7 +587,8 @@ func InitStream(bladeRF *BladeRF, format Format, numBuffers int, samplesPerBuffe
 		&((stream).stream),
 		(*bladeRF).bladeRF,
 		(*[0]byte)((C.cbGo)),
-		&buffers, C.ulong(numBuffers),
+		&buffers,
+		C.ulong(numBuffers),
 		C.bladerf_format(format),
 		C.ulong(samplesPerBuffer),
 		C.ulong(numTransfers),

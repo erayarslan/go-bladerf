@@ -6,13 +6,13 @@ import (
 	"github.com/gordonklaus/portaudio"
 	fifo "github.com/racerxdl/go.fifo"
 	"github.com/racerxdl/segdsp/demodcore"
-	log2 "log"
 	"os"
 	"os/signal"
+	"syscall"
 	"testing"
 )
 
-const audioBufferSize = 8192 / 2
+const audioBufferSize = 8192 / 4
 
 var audioStream *portaudio.Stream
 var audioFifo = fifo.NewQueue()
@@ -69,7 +69,7 @@ func TestBladeRF(t *testing.T) {
 	fmt.Println(result)
 	fmt.Println("---------")
 
-	result = DevStrMatches("*:serial=" + info.serial, GetDevInfo(&rf))
+	result = DevStrMatches("*:serial="+info.serial, GetDevInfo(&rf))
 	fmt.Println("---------")
 	fmt.Println(result)
 	fmt.Println("---------")
@@ -79,7 +79,7 @@ func TestBladeRF(t *testing.T) {
 	bootloaders := GetBootloaderList()
 	fmt.Printf("Bootloaders Len: %d\n", len(bootloaders))
 
-	err := EnableModule(&rf, RX)
+	err := EnableModule(&rf, CHANNEL_RX(1))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -100,23 +100,22 @@ func TestSetGainStage(t *testing.T) {
 	rf := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
-	stages := GetGainStages(&rf, IORX)
+	stages := GetGainStages(&rf, CHANNEL_RX(1))
 	fmt.Println(len(stages))
-	bfRange, _ := GetGainStageRange(&rf, IORX, stages[0])
-	_ = SetGainStage(&rf, IORX, stages[0], int(bfRange.max))
-	gain, _ := GetGainStage(&rf, IORX, stages[0])
+	bfRange, _ := GetGainStageRange(&rf, CHANNEL_RX(1), stages[0])
+	_ = SetGainStage(&rf, CHANNEL_RX(1), stages[0], int(bfRange.max))
+	gain, _ := GetGainStage(&rf, CHANNEL_RX(1), stages[0])
 	fmt.Println(gain)
 }
 
 func TestStream(t *testing.T) {
-	var err error
-
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt, os.Kill)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 
 	log.SetVerbosity(log.Debug)
 
 	devices := GetDeviceList()
+	channel := CHANNEL_RX(1)
 
 	if len(devices) == 0 {
 		fmt.Println("NO DEVICE")
@@ -126,41 +125,15 @@ func TestStream(t *testing.T) {
 	rf := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
-	err = SetFrequency(&rf, IORX, 96600000)
-	if err != nil {
-		log2.Fatal(err)
-	}
-
-	min, max, step, err := GetSampleRateRange(&rf, IORX)
-	if err != nil {
-		log2.Fatal(err)
-	}
+	_ = SetFrequency(&rf, channel, 96600000)
+	min, max, step, _ := GetSampleRateRange(&rf, channel)
 	fmt.Printf("Min: %d, Max: %d, Step: %d\n", min, max, step)
-	err = SetSampleRate(&rf, IORX, 4e6)
-	if err != nil {
-		log2.Fatal(err)
-	}
-	err = SyncConfig(&rf, RX_X1, SC16_Q11, 16, audioBufferSize, 8, 32)
-	if err != nil {
-		log2.Fatal(err)
-	}
-
-	actual, err := SetBandwidth(&rf, IORX, 240000)
-	if err != nil {
-		log2.Fatal(err)
-	} else {
-		println(actual)
-	}
-
-	err = EnableModule(&rf, RX)
-	if err != nil {
-		log2.Fatal(err)
-	}
-
-	err = SetGainMode(&rf, IORX, Hybrid_AGC)
-	if err != nil {
-		log2.Fatal(err)
-	}
+	_ = SetSampleRate(&rf, channel, 4e6)
+	_ = SyncConfig(&rf, RX_X2, SC16_Q11, 16, audioBufferSize, 8, 32)
+	actual, _ := SetBandwidth(&rf, channel, 240000)
+	fmt.Println(actual)
+	_ = EnableModule(&rf, channel)
+	_ = SetGainMode(&rf, channel, Hybrid_AGC)
 
 	demodulator = demodcore.MakeWBFMDemodulator(uint32(2e6), 80e3, 48000)
 
@@ -176,23 +149,29 @@ func TestStream(t *testing.T) {
 	audioStream, _ = portaudio.OpenStream(p, ProcessAudio)
 	_ = audioStream.Start()
 
-	for {
-		out := demodulator.Work(GetFinalData(SyncRX(&rf, audioBufferSize)))
+	go func() {
+		for {
+			out := demodulator.Work(GetFinalData(SyncRX(&rf, audioBufferSize)))
 
-		if out != nil {
-			var o = out.(demodcore.DemodData)
-			var nBf = make([]float32, len(o.Data))
-			copy(nBf, o.Data)
-			var buffs = len(nBf) / audioBufferSize
-			for i := 0; i < buffs; i++ {
-				audioFifo.Add(nBf[audioBufferSize*i : audioBufferSize*(i+1)])
+			if out != nil {
+				var o = out.(demodcore.DemodData)
+				var nBf = make([]float32, len(o.Data))
+				copy(nBf, o.Data)
+				var buffs = len(nBf) / audioBufferSize
+				for i := 0; i < buffs; i++ {
+					audioFifo.Add(nBf[audioBufferSize*i : audioBufferSize*(i+1)])
+				}
 			}
 		}
-	}
+	}()
+
+	<-sig
+	fmt.Println("Thanks for using Golang!")
 }
 
 func cb(data []int16) {
-	out := demodulator.Work(GetFinalData(data))
+	final := GetFinalData(data)
+	out := demodulator.Work(final)
 
 	if out != nil {
 		var o = out.(demodcore.DemodData)
@@ -234,12 +213,17 @@ func TestGetGainRange(t *testing.T) {
 	rf := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
-	bfRange, _ := GetGainRange(&rf, IORX)
+	bfRange, _ := GetGainRange(&rf, CHANNEL_RX(1))
 	fmt.Println(bfRange.max)
 }
 
 func TestAsyncStream(t *testing.T) {
 	log.SetVerbosity(log.Debug)
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+
+	channel := CHANNEL_RX(1)
 
 	devices := GetDeviceList()
 
@@ -251,11 +235,11 @@ func TestAsyncStream(t *testing.T) {
 	rf := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
-	_ = SetFrequency(&rf, IORX, 96600000)
-	_ = SetSampleRate(&rf, IORX, 4e6)
-	_, _ = SetBandwidth(&rf, IORX, 240000)
-	_ = SetGainMode(&rf, IORX, Hybrid_AGC)
-	_ = EnableModule(&rf, RX)
+	_ = SetFrequency(&rf, channel, 96600000)
+	_ = SetSampleRate(&rf, channel, 4e6)
+	_, _ = SetBandwidth(&rf, channel, 240000)
+	//_ = SetGainMode(&rf, channel, Hybrid_AGC)
+	_ = EnableModule(&rf, channel)
 
 	rxStream := InitStream(&rf, SC16_Q11, 16, audioBufferSize, 8, cb)
 	defer DeInitStream(rxStream)
@@ -278,5 +262,11 @@ func TestAsyncStream(t *testing.T) {
 	audioStream, _ = portaudio.OpenStream(p, ProcessAudio)
 	_ = audioStream.Start()
 
-	_ = StartStream(rxStream, RX_X1)
+
+	go func() {
+		_ = StartStream(rxStream, RX_X2)
+	}()
+
+	<-sig
+	fmt.Println("hehe")
 }
