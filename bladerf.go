@@ -29,12 +29,12 @@ func cbGo(dev *C.struct_bladerf,
 	cb := pointer.Restore(userData).(Callback)
 
 	for i := 0; i < cb.bufferSize; i++ {
-		(cb.results)[i] = int16(*((*C.int16_t)(unsafe.Pointer(uintptr(samples) + (size * uintptr(i))))))
+		cb.results[i] = int16(*((*C.int16_t)(unsafe.Pointer(uintptr(samples) + (size * uintptr(i))))))
 	}
 
 	cb.cb(cb.results)
 
-	return samples
+	return samples // C.malloc(C.size_t(size * cb.bufferSize * 2 * 1)) allocate always fcjinf new
 }
 
 type GainMode int
