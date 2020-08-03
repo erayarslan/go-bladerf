@@ -166,12 +166,11 @@ func TestStream(t *testing.T) {
 	}()
 
 	<-sig
-	fmt.Println("Thanks for using Golang!")
+	fmt.Println("shit")
 }
 
 func cb(data []int16) {
-	final := GetFinalData(data)
-	out := demodulator.Work(final)
+	out := demodulator.Work(GetFinalData(data))
 
 	if out != nil {
 		var o = out.(demodcore.DemodData)

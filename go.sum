@@ -22,6 +22,8 @@ github.com/logrusorgru/aurora v0.0.0-20181002194514-a7b3b318ed4e/go.mod h1:7rIyQ
 github.com/mattetti/audio v0.0.0-20190404201502-c6aebeb78429 h1:5YWANgpchDSYJ0R6i3ODpZ4KN/1Jm9MZcFDtAtegjNM=
 github.com/mattetti/audio v0.0.0-20190404201502-c6aebeb78429/go.mod h1:LlQmBGkOuV/SKzEDXBPKauvN2UqCgzXO2XjecTGj40s=
 github.com/mattn/go-pointer v0.0.0-20180825124634-49522c3f3791/go.mod h1:2zXcozF6qYGgmsG+SeTZz3oAbFLdD3OWqnUbNvJZAlc=
+github.com/mattn/go-pointer v0.0.1 h1:n+XhsuGeVO6MEAp7xyEukFINEa+Quek5psIR/ylA6o0=
+github.com/mattn/go-pointer v0.0.1/go.mod h1:2zXcozF6qYGgmsG+SeTZz3oAbFLdD3OWqnUbNvJZAlc=
 github.com/myriadrf/limedrv v0.0.0-20190225221912-8583a26e3fce/go.mod h1:/SXVBJBHAVLlvLU1B1n0a0QPcZBtqF1VpH5POPZzuBw=
 github.com/oov/audio v0.0.0-20171004131523-88a2be6dbe38 h1:4Upfs5rLQdx7KwBct3bmPYAhWsDDJdx660gYb7Lv9TQ=
 github.com/oov/audio v0.0.0-20171004131523-88a2be6dbe38/go.mod h1:Xj06yMta9R1RSKiHmxL0Bo2TB8wiKVnMgA0KVopHHkk=

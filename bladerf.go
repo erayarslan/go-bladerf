@@ -13,6 +13,7 @@ import "C"
 import (
 	error2 "bladerf/error"
 	"fmt"
+	"github.com/mattn/go-pointer"
 	"unsafe"
 )
 
@@ -25,20 +26,15 @@ func cbGo(dev *C.struct_bladerf,
 	samples unsafe.Pointer,
 	numSamples C.size_t,
 	userData unsafe.Pointer) unsafe.Pointer {
-
-	cb := (*Callback)(userData)
+	cb := pointer.Restore(userData).(Callback)
 
 	for i := 0; i < cb.bufferSize; i++ {
-		cb.results = append(
-			cb.results,
-			int16(*((*C.int16_t)(unsafe.Pointer(uintptr(samples) + (size * uintptr(i)))))),
-		)
+		(cb.results)[i] = int16(*((*C.int16_t)(unsafe.Pointer(uintptr(samples) + (size * uintptr(i))))))
 	}
 
 	cb.cb(cb.results)
-	cb.results = nil
 
-	return C.malloc(C.size_t(size * cb.bufferSize * 2 * 1))
+	return samples
 }
 
 type GainMode int
@@ -579,9 +575,13 @@ func InitStream(bladeRF *BladeRF, format Format, numBuffers int, samplesPerBuffe
 
 	stream := Stream{stream: rxStream}
 
-	var res []int16
+	results := make([]int16, samplesPerBuffer)
 
-	cb := Callback{cb: callback, results: res, bufferSize: samplesPerBuffer}
+	cb := Callback{
+		cb:         callback,
+		results:    results,
+		bufferSize: samplesPerBuffer,
+	}
 
 	C.bladerf_init_stream(
 		&((stream).stream),
@@ -592,7 +592,7 @@ func InitStream(bladeRF *BladeRF, format Format, numBuffers int, samplesPerBuffe
 		C.bladerf_format(format),
 		C.ulong(samplesPerBuffer),
 		C.ulong(numTransfers),
-		unsafe.Pointer(&cb),
+		pointer.Save(cb),
 	)
 
 	return &stream
