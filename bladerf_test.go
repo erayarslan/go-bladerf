@@ -49,10 +49,23 @@ func GetFinalData(input []int16) []complex64 {
 	return complexFloat
 }
 
+func GetFinalDataString(input []int16) string {
+	var runes []rune
+
+	for i := 0; i < len(input)/2; i++ {
+		runes = append(runes, rune(input[2*i+1]))
+	}
+
+	return string(runes)
+}
+
 func TestBladeRF(t *testing.T) {
-	log.SetVerbosity(log.Debug)
+	log.SetVerbosity(log.Error)
 
 	PrintVersion(GetVersion())
+
+	bootloaders := GetBootloaderList()
+	fmt.Printf("Bootloaders Len: %d\n", len(bootloaders))
 
 	devices := GetDeviceList()
 	fmt.Printf("Devices Len: %d\n", len(devices))
@@ -79,9 +92,6 @@ func TestBladeRF(t *testing.T) {
 	fmt.Println("---------")
 
 	rf = Open()
-
-	bootloaders := GetBootloaderList()
-	fmt.Printf("Bootloaders Len: %d\n", len(bootloaders))
 
 	err := EnableModule(&rf, CHANNEL_RX(1))
 	if err != nil {
@@ -155,7 +165,8 @@ func TestStream(t *testing.T) {
 
 	go func() {
 		for {
-			out := demodulator.Work(GetFinalData(SyncRX(&rf, audioBufferSize)))
+			data, _ := SyncRX(&rf, audioBufferSize)
+			out := demodulator.Work(GetFinalData(data))
 
 			if out != nil {
 				var o = out.(demodcore.DemodData)
@@ -218,6 +229,34 @@ func TestGetGainRange(t *testing.T) {
 
 	bfRange, _ := GetGainRange(&rf, CHANNEL_RX(1))
 	fmt.Println(bfRange.max)
+}
+
+func TestGPSData(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+	channel := CHANNEL_RX(1)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	_ = SetFrequency(&rf, channel, 1525420000)
+	_ = SyncConfig(&rf, channel_layout.RX_X2, format.SC16_Q11, 16, audioBufferSize, 8, 32)
+	_ = SetSampleRate(&rf, channel, 2600000)
+	_, _ = SetBandwidth(&rf, channel, 2500000)
+	//_ = SetGainMode(&rf, channel, Hybrid_AGC)
+	_ = EnableModule(&rf, channel)
+
+	for {
+		data, _ := SyncRX(&rf, audioBufferSize)
+		out := GetFinalDataString(data)
+		fmt.Println(out)
+	}
 }
 
 func TestAsyncStream(t *testing.T) {
