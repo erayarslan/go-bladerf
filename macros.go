@@ -2,7 +2,7 @@ package bladerf
 
 // #include "macro_wrapper.h"
 import "C"
-import "bladerf/channel"
+import "github.com/erayarslan/go-bladerf/channel"
 
 func CHANNEL_RX(ch int) channel.Channel {
 	return channel.Channel(C.ChannelRX(C.int(ch)))

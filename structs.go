@@ -4,8 +4,8 @@ package bladerf
 import "C"
 
 import (
-	"bladerf/backend"
-	"bladerf/gain_mode"
+	"github.com/erayarslan/go-bladerf/backend"
+	"github.com/erayarslan/go-bladerf/gain_mode"
 )
 
 type DevInfo struct {

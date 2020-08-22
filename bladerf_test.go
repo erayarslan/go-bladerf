@@ -1,12 +1,12 @@
 package bladerf
 
 import (
-	"bladerf/channel_layout"
-	"bladerf/direction"
-	"bladerf/format"
-	"bladerf/gain_mode"
-	"bladerf/log"
 	"fmt"
+	"github.com/erayarslan/go-bladerf/channel_layout"
+	"github.com/erayarslan/go-bladerf/direction"
+	"github.com/erayarslan/go-bladerf/format"
+	"github.com/erayarslan/go-bladerf/gain_mode"
+	"github.com/erayarslan/go-bladerf/log"
 	"github.com/gordonklaus/portaudio"
 	fifo "github.com/racerxdl/go.fifo"
 	"github.com/racerxdl/segdsp/demodcore"
