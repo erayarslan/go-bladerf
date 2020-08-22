@@ -27,7 +27,14 @@ func GetError(code C.int) error {
 }
 
 //export StreamCallback
-func StreamCallback(dev *C.struct_bladerf, stream *C.struct_bladerf_stream, metadata *C.struct_bladerf_metadata, samples unsafe.Pointer, numSamples C.size_t, userData unsafe.Pointer) unsafe.Pointer {
+func StreamCallback(
+	dev *C.struct_bladerf,
+	stream *C.struct_bladerf_stream,
+	metadata *C.struct_bladerf_metadata,
+	samples unsafe.Pointer,
+	numSamples C.size_t,
+	userData unsafe.Pointer,
+) unsafe.Pointer {
 	ud := pointer.Restore(userData).(UserData)
 
 	for i := uint32(0); i < uint32(numSamples); i++ {
@@ -41,13 +48,7 @@ func StreamCallback(dev *C.struct_bladerf, stream *C.struct_bladerf_stream, meta
 func GetVersion() Version {
 	var version C.struct_bladerf_version
 	C.bladerf_version(&version)
-	return Version{
-		ref:      &version,
-		major:    uint16(version.major),
-		minor:    uint16(version.minor),
-		patch:    uint16(version.patch),
-		describe: C.GoString(version.describe),
-	}
+	return NewVersion(&version)
 }
 
 func PrintVersion(version Version) {

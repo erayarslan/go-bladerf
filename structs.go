@@ -63,6 +63,17 @@ type Version struct {
 	describe string
 }
 
+func NewVersion(ref *C.struct_bladerf_version) Version {
+	version := Version{ref: ref}
+
+	version.major = uint16((*ref).major)
+	version.minor = uint16((*ref).minor)
+	version.patch = uint16((*ref).patch)
+	version.describe = C.GoString((*ref).describe)
+
+	return version
+}
+
 type Range struct {
 	ref   *C.struct_bladerf_range
 	min   int64
