@@ -69,17 +69,19 @@ func TestBladeRF(t *testing.T) {
 
 	devices := GetDeviceList()
 	fmt.Printf("Devices Len: %d\n", len(devices))
-	rf := OpenWithDevInfo(devices[0])
+	rf, _ := OpenWithDevInfo(devices[0])
 	LoadFpga(rf, "/Users/erayarslan/Downloads/hostedxA4-latest.rbf")
 	Close(rf)
 
 	rf = Open()
 	info := GetDevInfo(&rf)
 	Close(rf)
-	Close(OpenWithDevInfo(GetDevInfo(&rf)))
+	out, _ := OpenWithDevInfo(GetDevInfo(&rf))
+	Close(out)
 	Close(Open())
 	Close(OpenWithDeviceIdentifier("*:serial=" + info.serial))
-	Close(OpenWithDevInfo(GetDevInfoFromStr("*:serial=" + info.serial)))
+	out2, _ :=OpenWithDevInfo(GetDevInfoFromStr("*:serial=" + info.serial))
+	Close(out2)
 
 	result := DevInfoMatches(GetDevInfo(&rf), GetDevInfo(&rf))
 	fmt.Println("---------")
@@ -111,7 +113,7 @@ func TestSetGainStage(t *testing.T) {
 		return
 	}
 
-	rf := OpenWithDevInfo(devices[0])
+	rf, _ := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
 	stages := GetGainStages(&rf, CHANNEL_RX(1))
@@ -136,7 +138,7 @@ func TestStream(t *testing.T) {
 		return
 	}
 
-	rf := OpenWithDevInfo(devices[0])
+	rf, _ := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
 	_ = SetFrequency(&rf, channel, 96600000)
@@ -208,7 +210,7 @@ func TestGetGainModes(t *testing.T) {
 		return
 	}
 
-	rf := OpenWithDevInfo(devices[0])
+	rf, _ := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
 	GetGainModes(&rf, CHANNEL_RX(1))
@@ -224,7 +226,7 @@ func TestGetGainRange(t *testing.T) {
 		return
 	}
 
-	rf := OpenWithDevInfo(devices[0])
+	rf, _ := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
 	bfRange, _ := GetGainRange(&rf, CHANNEL_RX(1))
@@ -242,7 +244,7 @@ func TestGPSData(t *testing.T) {
 		return
 	}
 
-	rf := OpenWithDevInfo(devices[0])
+	rf, _ := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
 	_ = SetFrequency(&rf, channel, 1525420000)
@@ -274,7 +276,7 @@ func TestAsyncStream(t *testing.T) {
 		return
 	}
 
-	rf := OpenWithDevInfo(devices[0])
+	rf, _ := OpenWithDevInfo(devices[0])
 	defer Close(rf)
 
 	_ = SetFrequency(&rf, channel, 96600000)

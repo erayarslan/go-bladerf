@@ -136,10 +136,15 @@ func GetDevInfoFromStr(devStr string) DevInfo {
 	return NewDevInfo(&devInfo)
 }
 
-func OpenWithDevInfo(devInfo DevInfo) BladeRF {
+func OpenWithDevInfo(devInfo DevInfo) (BladeRF, error) {
 	var bladeRF *C.struct_bladerf
-	C.bladerf_open_with_devinfo(&bladeRF, devInfo.ref)
-	return BladeRF{ref: bladeRF}
+	err := GetError(C.bladerf_open_with_devinfo(&bladeRF, devInfo.ref))
+
+	if err != nil {
+		return BladeRF{}, err
+	}
+
+	return BladeRF{ref: bladeRF}, nil
 }
 
 func OpenWithDeviceIdentifier(identify string) BladeRF {
@@ -169,11 +174,6 @@ func SetFrequency(bladeRF *BladeRF, channel channel.Channel, frequency int) erro
 func SetSampleRate(bladeRF *BladeRF, channel channel.Channel, sampleRate int) error {
 	var actual C.uint
 	err := GetError(C.bladerf_set_sample_rate((*bladeRF).ref, C.bladerf_channel(channel), C.uint(sampleRate), &actual))
-
-	if err == nil {
-		println(uint(actual))
-	}
-
 	return err
 }
 
