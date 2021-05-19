@@ -3,14 +3,9 @@ package bladerf
 // #include <libbladeRF.h>
 import "C"
 
-import (
-	"github.com/erayarslan/go-bladerf/backend"
-	"github.com/erayarslan/go-bladerf/gain_mode"
-)
-
-type DevInfo struct {
+type DeviceInfo struct {
 	ref          *C.struct_bladerf_devinfo
-	backend      backend.Backend
+	backend      Backend
 	serial       string
 	usbBus       int8
 	usbAddr      int8
@@ -19,40 +14,40 @@ type DevInfo struct {
 	product      string
 }
 
-func NewDevInfo(ref *C.struct_bladerf_devinfo) DevInfo {
-	devInfo := DevInfo{ref: ref}
+func NewDeviceInfo(ref *C.struct_bladerf_devinfo) DeviceInfo {
+	deviceInfo := DeviceInfo{ref: ref}
 
 	var serial []rune
 	var manufacturer []rune
 	var product []rune
 
-	for i := range devInfo.ref.serial {
-		if devInfo.ref.serial[i] != 0 {
-			serial = append(serial, rune(devInfo.ref.serial[i]))
+	for i := range deviceInfo.ref.serial {
+		if deviceInfo.ref.serial[i] != 0 {
+			serial = append(serial, rune(deviceInfo.ref.serial[i]))
 		}
 	}
 
-	for i := range devInfo.ref.manufacturer {
-		if devInfo.ref.manufacturer[i] != 0 {
-			manufacturer = append(manufacturer, rune(devInfo.ref.manufacturer[i]))
+	for i := range deviceInfo.ref.manufacturer {
+		if deviceInfo.ref.manufacturer[i] != 0 {
+			manufacturer = append(manufacturer, rune(deviceInfo.ref.manufacturer[i]))
 		}
 	}
 
-	for i := range devInfo.ref.product {
-		if devInfo.ref.product[i] != 0 {
-			product = append(product, rune(devInfo.ref.product[i]))
+	for i := range deviceInfo.ref.product {
+		if deviceInfo.ref.product[i] != 0 {
+			product = append(product, rune(deviceInfo.ref.product[i]))
 		}
 	}
 
-	devInfo.backend = backend.Backend(devInfo.ref.backend)
-	devInfo.serial = string(serial)
-	devInfo.usbBus = int8(devInfo.ref.usb_bus)
-	devInfo.usbAddr = int8(devInfo.ref.usb_addr)
-	devInfo.instance = uint(devInfo.ref.instance)
-	devInfo.manufacturer = string(manufacturer)
-	devInfo.product = string(product)
+	deviceInfo.backend = Backend(deviceInfo.ref.backend)
+	deviceInfo.serial = string(serial)
+	deviceInfo.usbBus = int8(deviceInfo.ref.usb_bus)
+	deviceInfo.usbAddr = int8(deviceInfo.ref.usb_addr)
+	deviceInfo.instance = uint(deviceInfo.ref.instance)
+	deviceInfo.manufacturer = string(manufacturer)
+	deviceInfo.product = string(product)
 
-	return devInfo
+	return deviceInfo
 }
 
 type Version struct {
@@ -113,10 +108,6 @@ func NewSerial(ref *C.struct_bladerf_serial) Serial {
 	return Serial{ref: ref, serial: string(serial)}
 }
 
-type Module struct {
-	ref *C.struct_bladerf_module
-}
-
 type Stream struct {
 	ref *C.struct_bladerf_stream
 }
@@ -124,14 +115,14 @@ type Stream struct {
 type GainModes struct {
 	ref  *C.struct_bladerf_gain_modes
 	name string
-	mode gain_mode.GainMode
+	mode GainMode
 }
 
 func NewGainModes(ref *C.struct_bladerf_gain_modes) GainModes {
 	gainModes := GainModes{ref: ref}
 
 	gainModes.name = C.GoString(gainModes.ref.name)
-	gainModes.mode = gain_mode.GainMode(gainModes.ref.mode)
+	gainModes.mode = GainMode(gainModes.ref.mode)
 
 	return gainModes
 }

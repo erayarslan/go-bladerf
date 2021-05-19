@@ -27,7 +27,7 @@ const (
 	NotInit     Code = -19
 )
 
-func CodeToString(code Code) string {
+func codeToString(code Code) string {
 	switch code {
 	case Unexpected:
 		return "An unexpected failure occurred"
@@ -85,5 +85,5 @@ func New(code int) error {
 		return nil
 	}
 
-	return &errorString{s: CodeToString(Code(code))}
+	return &errorString{s: codeToString(Code(code))}
 }
