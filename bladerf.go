@@ -169,7 +169,7 @@ func SetLoopback(bladeRF *BladeRF, loopback loopback.Loopback) error {
 }
 
 func SetFrequency(bladeRF *BladeRF, channel channel.Channel, frequency int) error {
-	return GetError(C.bladerf_set_frequency((*bladeRF).ref, C.bladerf_channel(channel), C.ulonglong(frequency)))
+	return GetError(C.bladerf_set_frequency((*bladeRF).ref, C.bladerf_channel(channel), C.bladerf_frequency(frequency)))
 }
 
 func SetSampleRate(bladeRF *BladeRF, channel channel.Channel, sampleRate int) error {
