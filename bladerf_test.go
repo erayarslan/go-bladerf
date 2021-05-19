@@ -2,6 +2,7 @@ package bladerf
 
 import (
 	"fmt"
+	"github.com/erayarslan/go-bladerf/backend"
 	"github.com/erayarslan/go-bladerf/channel_layout"
 	"github.com/erayarslan/go-bladerf/direction"
 	"github.com/erayarslan/go-bladerf/format"
@@ -59,6 +60,225 @@ func GetFinalDataString(input []int16) string {
 	return string(runes)
 }
 
+func TestBackendSTR(t *testing.T) {
+	x := BackendSTR(backend.LibUSB)
+	y := BackendSTR(backend.Dummy)
+	z := BackendSTR(backend.Any)
+	a := BackendSTR(backend.Cypress)
+	b := BackendSTR(backend.Linux)
+	fmt.Println(x, y, z, a, b)
+}
+
+func TestSetUSBResetOnOpen(t *testing.T) {
+	SetUSBResetOnOpen(true)
+	SetUSBResetOnOpen(false)
+}
+
+func TestGetSerial(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	serial, _ := GetSerial(&rf)
+	fmt.Println(serial)
+}
+
+func TestGetSerialStruct(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	serial, _ := GetSerialStruct(&rf)
+	fmt.Print(serial)
+}
+
+func TestGetFpgaSize(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	size, _ := GetFpgaSize(&rf)
+	fmt.Print(size)
+}
+
+func TestGetFpgaSource(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	source, _ := GetFpgaSource(&rf)
+	fmt.Print(source)
+}
+
+func TestGetDeviceSpeed(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	speed := GetDeviceSpeed(&rf)
+	fmt.Print(speed)
+}
+
+func TestGetBoardName(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	name := GetBoardName(&rf)
+	fmt.Print(name)
+}
+
+func TestGetRationalSampleRate(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	rate, _ := GetRationalSampleRate(&rf, CHANNEL_RX(1))
+	fmt.Print(rate)
+}
+
+func TestGetFpgaBytes(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	bytes, _ := GetFpgaBytes(&rf)
+	fmt.Print(bytes)
+}
+
+func TestGetFpgaFlashSize(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	size, guess, _ := GetFpgaFlashSize(&rf)
+	fmt.Print(size)
+	fmt.Print(guess)
+}
+
+func TestGetFirmwareVersion(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	version, _ := GetFirmwareVersion(&rf)
+	fmt.Print(version.describe)
+}
+
+func TestGetFpgaVersion(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	version, _ := GetFpgaVersion(&rf)
+	fmt.Print(version.describe)
+}
+
+func TestIsFpgaConfigured(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDevInfo(devices[0])
+	defer Close(rf)
+
+	isConfigured, _ := IsFpgaConfigured(&rf)
+	fmt.Print(isConfigured)
+}
+
 func TestBladeRF(t *testing.T) {
 	log.SetVerbosity(log.Error)
 
@@ -80,7 +300,7 @@ func TestBladeRF(t *testing.T) {
 	Close(out)
 	Close(Open())
 	Close(OpenWithDeviceIdentifier("*:serial=" + info.serial))
-	out2, _ :=OpenWithDevInfo(GetDevInfoFromStr("*:serial=" + info.serial))
+	out2, _ := OpenWithDevInfo(GetDevInfoFromStr("*:serial=" + info.serial))
 	Close(out2)
 
 	result := DevInfoMatches(GetDevInfo(&rf), GetDevInfo(&rf))

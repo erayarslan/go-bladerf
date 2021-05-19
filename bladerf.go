@@ -11,11 +11,15 @@ import "C"
 import "C"
 import (
 	"fmt"
+	"github.com/erayarslan/go-bladerf/backend"
 	"github.com/erayarslan/go-bladerf/channel"
 	"github.com/erayarslan/go-bladerf/channel_layout"
+	"github.com/erayarslan/go-bladerf/device_speed"
 	"github.com/erayarslan/go-bladerf/direction"
 	exception "github.com/erayarslan/go-bladerf/error"
 	"github.com/erayarslan/go-bladerf/format"
+	"github.com/erayarslan/go-bladerf/fpga_size"
+	"github.com/erayarslan/go-bladerf/fpga_source"
 	"github.com/erayarslan/go-bladerf/gain_mode"
 	"github.com/erayarslan/go-bladerf/loopback"
 	"github.com/mattn/go-pointer"
@@ -59,6 +63,56 @@ func LoadFpga(bladeRF BladeRF, imagePath string) error {
 	path := C.CString(imagePath)
 	defer C.free(unsafe.Pointer(path))
 	return GetError(C.bladerf_load_fpga(bladeRF.ref, path))
+}
+
+func GetFpgaSize(bladeRF *BladeRF) (fpga_size.FPGASize, error) {
+	var size C.bladerf_fpga_size
+	err := GetError(C.bladerf_get_fpga_size((*bladeRF).ref, &size))
+	return fpga_size.FPGASize(int(size)), err
+}
+
+func GetFpgaSource(bladeRF *BladeRF) (fpga_source.FPGASource, error) {
+	var source C.bladerf_fpga_source
+	err := GetError(C.bladerf_get_fpga_source((*bladeRF).ref, &source))
+	return fpga_source.FPGASource(int(source)), err
+}
+
+func GetFpgaBytes(bladeRF *BladeRF) (uint32, error) {
+	var size C.size_t
+	err := GetError(C.bladerf_get_fpga_bytes((*bladeRF).ref, &size))
+	return uint32(size), err
+}
+
+func GetFpgaFlashSize(bladeRF *BladeRF) (uint32, bool, error) {
+	var size C.uint32_t
+	var isGuess C.bool
+	err := GetError(C.bladerf_get_flash_size((*bladeRF).ref, &size, &isGuess))
+	return uint32(size), bool(isGuess), err
+}
+
+func GetFirmwareVersion(bladeRF *BladeRF) (Version, error) {
+	var version C.struct_bladerf_version
+	err := GetError(C.bladerf_fw_version((*bladeRF).ref, &version))
+	return NewVersion(&version), err
+}
+
+func IsFpgaConfigured(bladeRF *BladeRF) (bool, error) {
+	out := C.bladerf_is_fpga_configured((*bladeRF).ref)
+	if int(out) < 0 {
+		return false, GetError(out)
+	}
+
+	return int(out) == 1, nil
+}
+
+func GetDeviceSpeed(bladeRF *BladeRF) device_speed.DeviceSpeed {
+	return device_speed.DeviceSpeed(int(C.bladerf_device_speed((*bladeRF).ref)))
+}
+
+func GetFpgaVersion(bladeRF *BladeRF) (Version, error) {
+	var version C.struct_bladerf_version
+	err := GetError(C.bladerf_fpga_version((*bladeRF).ref, &version))
+	return NewVersion(&version), err
 }
 
 func FreeDeviceList(devInfo DevInfo) {
@@ -178,6 +232,12 @@ func SetSampleRate(bladeRF *BladeRF, channel channel.Channel, sampleRate int) er
 	return err
 }
 
+func GetRationalSampleRate(bladeRF *BladeRF, channel channel.Channel) (RationalRate, error) {
+	var rate C.struct_bladerf_rational_rate
+	err := GetError(C.bladerf_get_rational_sample_rate((*bladeRF).ref, C.bladerf_channel(channel), &rate))
+	return NewRationalRate(&rate), err
+}
+
 func GetSampleRateRange(bladeRF *BladeRF, channel channel.Channel) (int, int, int, error) {
 	var bfRange *C.struct_bladerf_range
 
@@ -285,6 +345,30 @@ func GetNumberOfGainStages(bladeRF *BladeRF, channel channel.Channel) int {
 	}
 
 	return count
+}
+
+func BackendSTR(backend backend.Backend) string {
+	return C.GoString(C.bladerf_backend_str(C.bladerf_backend(backend)))
+}
+
+func GetBoardName(bladeRF *BladeRF) string {
+	return C.GoString(C.bladerf_get_board_name((*bladeRF).ref))
+}
+
+func SetUSBResetOnOpen(enabled bool) {
+	C.bladerf_set_usb_reset_on_open(C.bool(enabled))
+}
+
+func GetSerial(bladeRF *BladeRF) (string, error) {
+	var serial C.char
+	GetError(C.bladerf_get_serial((*bladeRF).ref, &serial))
+	return C.GoString(&serial), nil
+}
+
+func GetSerialStruct(bladeRF *BladeRF) (Serial, error) {
+	var serial C.struct_bladerf_serial
+	GetError(C.bladerf_get_serial_struct((*bladeRF).ref, &serial))
+	return NewSerial(&serial), nil
 }
 
 func GetGainStages(bladeRF *BladeRF, channel channel.Channel) []string {

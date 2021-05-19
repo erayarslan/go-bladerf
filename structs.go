@@ -74,6 +74,17 @@ func NewVersion(ref *C.struct_bladerf_version) Version {
 	return version
 }
 
+type RationalRate struct {
+	ref     *C.struct_bladerf_rational_rate
+	integer uint64
+	num     uint64
+	den     uint64
+}
+
+func NewRationalRate(ref *C.struct_bladerf_rational_rate) RationalRate {
+	return RationalRate{ref: ref, integer: uint64((*ref).integer), num: uint64((*ref).num), den: uint64((*ref).den)}
+}
+
 type Range struct {
 	ref   *C.struct_bladerf_range
 	min   int64
@@ -84,6 +95,22 @@ type Range struct {
 
 type BladeRF struct {
 	ref *C.struct_bladerf
+}
+
+type Serial struct {
+	ref    *C.struct_bladerf_serial
+	serial string
+}
+
+func NewSerial(ref *C.struct_bladerf_serial) Serial {
+	var serial []rune
+	for i := range (*ref).serial {
+		if (*ref).serial[i] != 0 {
+			serial = append(serial, rune((*ref).serial[i]))
+		}
+	}
+
+	return Serial{ref: ref, serial: string(serial)}
 }
 
 type Module struct {
