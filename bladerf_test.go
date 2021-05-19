@@ -267,7 +267,7 @@ func TestAsyncStream(t *testing.T) {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 
-	channel := CHANNEL_RX(1)
+	channel := CHANNEL_RX(0)
 
 	devices := GetDeviceList()
 
