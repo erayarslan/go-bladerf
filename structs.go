@@ -88,6 +88,10 @@ type Range struct {
 	scale float64
 }
 
+func NewRange(ref *C.struct_bladerf_range) Range {
+	return Range{ref: ref, min: int64((*ref).min), max: int64((*ref).max), step: int64((*ref).step), scale: float64((*ref).scale)}
+}
+
 type BladeRF struct {
 	ref *C.struct_bladerf
 }

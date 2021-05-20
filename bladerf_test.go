@@ -378,8 +378,8 @@ func TestStream(t *testing.T) {
 	defer Close(rf)
 
 	_ = SetFrequency(rf, channel, 96600000)
-	min, max, step, _ := GetSampleRateRange(rf, channel)
-	fmt.Printf("Min: %d, Max: %d, Step: %d\n", min, max, step)
+	_range, _ := GetSampleRateRange(rf, channel)
+	fmt.Printf("Min: %d, Max: %d, Step: %d\n", _range.min, _range.max, _range.step)
 	_, _ = SetSampleRate(rf, channel, 4e6)
 	_ = SyncConfig(rf, RxX2, FormatSc16Q11, 16, audioBufferSize, 8, 32)
 	actual, _ := SetBandwidth(rf, channel, 240000)

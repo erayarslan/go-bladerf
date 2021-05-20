@@ -285,8 +285,34 @@ func SetLoopback(bladeRF BladeRF, loopback Loopback) error {
 	return GetError(C.bladerf_set_loopback(bladeRF.ref, C.bladerf_loopback(loopback)))
 }
 
+func GetLoopback(bladeRF BladeRF) (Loopback, error) {
+	var loopback C.bladerf_loopback
+	err := GetError(C.bladerf_get_loopback(bladeRF.ref, &loopback))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return Loopback(loopback), nil
+}
+
+func SelectBand(bladeRF BladeRF, channel Channel, frequency uint64) error {
+	return GetError(C.bladerf_select_band(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_frequency(frequency)))
+}
+
 func SetFrequency(bladeRF BladeRF, channel Channel, frequency uint64) error {
 	return GetError(C.bladerf_set_frequency(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_frequency(frequency)))
+}
+
+func GetFrequency(bladeRF BladeRF, channel Channel) (uint64, error) {
+	var frequency C.uint64_t
+	err := GetError(C.bladerf_get_frequency(bladeRF.ref, C.bladerf_channel(channel), &frequency))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return uint64(frequency), nil
 }
 
 func SetSampleRate(bladeRF BladeRF, channel Channel, sampleRate uint) (uint, error) {
@@ -297,7 +323,34 @@ func SetSampleRate(bladeRF BladeRF, channel Channel, sampleRate uint) (uint, err
 		return 0, err
 	}
 
-	return uint(actual), err
+	return uint(actual), nil
+}
+
+func SetRationalSampleRate(bladeRF BladeRF, channel Channel, rationalRate RationalRate) (RationalRate, error) {
+	var actual C.struct_bladerf_rational_rate
+	rationalSampleRate := C.struct_bladerf_rational_rate{
+		num:     C.uint64_t(rationalRate.num),
+		integer: C.uint64_t(rationalRate.integer),
+		den:     C.uint64_t(rationalRate.den),
+	}
+	err := GetError(C.bladerf_set_rational_sample_rate(bladeRF.ref, C.bladerf_channel(channel), &rationalSampleRate, &actual))
+
+	if err != nil {
+		return RationalRate{}, err
+	}
+
+	return NewRationalRate(&actual), nil
+}
+
+func GetSampleRate(bladeRF BladeRF, channel Channel) (uint, error) {
+	var sampleRate C.uint
+	err := GetError(C.bladerf_get_sample_rate(bladeRF.ref, C.bladerf_channel(channel), &sampleRate))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return uint(sampleRate), nil
 }
 
 func GetRationalSampleRate(bladeRF BladeRF, channel Channel) (RationalRate, error) {
@@ -311,16 +364,26 @@ func GetRationalSampleRate(bladeRF BladeRF, channel Channel) (RationalRate, erro
 	return NewRationalRate(&rate), nil
 }
 
-func GetSampleRateRange(bladeRF BladeRF, channel Channel) (int, int, int, error) {
-	var bfRange *C.struct_bladerf_range
-
-	err := GetError(C.bladerf_get_sample_rate_range(bladeRF.ref, C.bladerf_channel(channel), &bfRange))
+func GetSampleRateRange(bladeRF BladeRF, channel Channel) (Range, error) {
+	var _range *C.struct_bladerf_range
+	err := GetError(C.bladerf_get_sample_rate_range(bladeRF.ref, C.bladerf_channel(channel), &_range))
 
 	if err != nil {
-		return 0, 0, 0, err
+		return Range{}, err
 	}
 
-	return int(bfRange.min), int(bfRange.max), int(bfRange.step), nil
+	return NewRange(_range), nil
+}
+
+func GetFrequencyRange(bladeRF BladeRF, channel Channel) (Range, error) {
+	var _range *C.struct_bladerf_range
+	err := GetError(C.bladerf_get_frequency_range(bladeRF.ref, C.bladerf_channel(channel), &_range))
+
+	if err != nil {
+		return Range{}, err
+	}
+
+	return NewRange(_range), nil
 }
 
 func SetBandwidth(bladeRF BladeRF, channel Channel, bandwidth uint) (uint, error) {
@@ -332,6 +395,28 @@ func SetBandwidth(bladeRF BladeRF, channel Channel, bandwidth uint) (uint, error
 	}
 
 	return uint(actual), nil
+}
+
+func GetBandwidth(bladeRF BladeRF, channel Channel) (uint, error) {
+	var bandwidth C.bladerf_bandwidth
+	err := GetError(C.bladerf_get_bandwidth(bladeRF.ref, C.bladerf_channel(channel), &bandwidth))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return uint(bandwidth), nil
+}
+
+func GetBandwidthRange(bladeRF BladeRF, channel Channel) (Range, error) {
+	var bfRange *C.struct_bladerf_range
+	err := GetError(C.bladerf_get_bandwidth_range(bladeRF.ref, C.bladerf_channel(channel), &bfRange))
+
+	if err != nil {
+		return Range{}, err
+	}
+
+	return NewRange(bfRange), nil
 }
 
 func SetGain(bladeRF BladeRF, channel Channel, gain int) error {
@@ -386,37 +471,25 @@ func GetGainStageRange(bladeRF BladeRF, channel Channel, stage string) (Range, e
 	val := C.CString(stage)
 	defer C.free(unsafe.Pointer(val))
 
-	var bfRange *C.struct_bladerf_range
-	err := GetError(C.bladerf_get_gain_stage_range(bladeRF.ref, C.bladerf_channel(channel), val, &bfRange))
+	var _range *C.struct_bladerf_range
+	err := GetError(C.bladerf_get_gain_stage_range(bladeRF.ref, C.bladerf_channel(channel), val, &_range))
 
 	if err != nil {
 		return Range{}, err
 	}
 
-	return Range{
-		ref:   bfRange,
-		min:   int64(bfRange.min),
-		max:   int64(bfRange.max),
-		step:  int64(bfRange.step),
-		scale: float64(bfRange.scale),
-	}, nil
+	return NewRange(_range), nil
 }
 
 func GetGainRange(bladeRF BladeRF, channel Channel) (Range, error) {
-	var bfRange *C.struct_bladerf_range
-	err := GetError(C.bladerf_get_gain_range(bladeRF.ref, C.bladerf_channel(channel), &bfRange))
+	var _range *C.struct_bladerf_range
+	err := GetError(C.bladerf_get_gain_range(bladeRF.ref, C.bladerf_channel(channel), &_range))
 
 	if err != nil {
 		return Range{}, err
 	}
 
-	return Range{
-		ref:   bfRange,
-		min:   int64(bfRange.min),
-		max:   int64(bfRange.max),
-		step:  int64(bfRange.step),
-		scale: float64(bfRange.scale),
-	}, nil
+	return NewRange(_range), nil
 }
 
 func GetNumberOfGainStages(bladeRF BladeRF, channel Channel) (int, error) {
