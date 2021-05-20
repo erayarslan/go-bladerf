@@ -3,6 +3,8 @@ package bladerf
 // #include <libbladeRF.h>
 import "C"
 
+type Timestamp uint64
+
 type DeviceInfo struct {
 	ref          *C.struct_bladerf_devinfo
 	backend      Backend

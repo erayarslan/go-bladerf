@@ -314,6 +314,28 @@ func TestGetQuickTune(t *testing.T) {
 	}
 }
 
+func TestExpansionBoard(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices, _ := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDeviceInfo(devices[0])
+	defer Close(rf)
+
+	board, err := GetAttachedExpansionBoard(rf)
+
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(board)
+}
+
 func TestReTuneNow(t *testing.T) {
 	fmt.Println(ReTuneNow)
 }

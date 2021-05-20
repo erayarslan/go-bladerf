@@ -21,7 +21,7 @@ type PowerSource int
 type RxMux int
 type TriggerRole int
 type TriggerSignal int
-type Timestamp uint64
+type ExpansionBoard int
 
 const (
 	BackendAny     Backend = C.BLADERF_BACKEND_ANY
@@ -149,4 +149,11 @@ const (
 	TriggerSignalUser5    TriggerSignal = C.BLADERF_TRIGGER_USER_5
 	TriggerSignalUser6    TriggerSignal = C.BLADERF_TRIGGER_USER_6
 	TriggerSignalUser7    TriggerSignal = C.BLADERF_TRIGGER_USER_7
+)
+
+const (
+	ExpansionBoardNone ExpansionBoard = C.BLADERF_XB_NONE
+	ExpansionBoard100  ExpansionBoard = C.BLADERF_XB_100
+	ExpansionBoard200  ExpansionBoard = C.BLADERF_XB_200
+	ExpansionBoard300  ExpansionBoard = C.BLADERF_XB_300
 )

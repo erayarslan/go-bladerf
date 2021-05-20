@@ -807,3 +807,18 @@ func SyncConfig(bladeRF BladeRF, layout ChannelLayout, format Format, numBuffers
 func StartStream(stream Stream, layout ChannelLayout) error {
 	return GetError(C.bladerf_stream(stream.ref, C.bladerf_channel_layout(layout)))
 }
+
+func AttachExpansionBoard(bladeRF BladeRF, expansionBoard ExpansionBoard) error {
+	return GetError(C.bladerf_expansion_attach(bladeRF.ref, C.bladerf_xb(expansionBoard)))
+}
+
+func GetAttachedExpansionBoard(bladeRF BladeRF) (ExpansionBoard, error) {
+	var expansionBoard C.bladerf_xb
+	err := GetError(C.bladerf_expansion_get_attached(bladeRF.ref, &expansionBoard))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return ExpansionBoard(expansionBoard), nil
+}
