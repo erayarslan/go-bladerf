@@ -285,6 +285,10 @@ func SetLoopback(bladeRF BladeRF, loopback Loopback) error {
 	return GetError(C.bladerf_set_loopback(bladeRF.ref, C.bladerf_loopback(loopback)))
 }
 
+func IsLoopbackModeSupported(bladeRF BladeRF, loopback Loopback) bool {
+	return bool(C.bladerf_is_loopback_mode_supported(bladeRF.ref, C.bladerf_loopback(loopback)))
+}
+
 func GetLoopback(bladeRF BladeRF) (Loopback, error) {
 	var loopback C.bladerf_loopback
 	err := GetError(C.bladerf_get_loopback(bladeRF.ref, &loopback))
@@ -324,6 +328,21 @@ func SetSampleRate(bladeRF BladeRF, channel Channel, sampleRate uint) (uint, err
 	}
 
 	return uint(actual), nil
+}
+
+func SetRxMux(bladeRF BladeRF, mux RxMux) error {
+	return GetError(C.bladerf_set_rx_mux(bladeRF.ref, C.bladerf_rx_mux(mux)))
+}
+
+func GetRxMux(bladeRF BladeRF) (RxMux, error) {
+	var rxMux C.bladerf_rx_mux
+	err := GetError(C.bladerf_get_rx_mux(bladeRF.ref, &rxMux))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return RxMux(rxMux), nil
 }
 
 func SetRationalSampleRate(bladeRF BladeRF, channel Channel, rationalRate RationalRate) (RationalRate, error) {
@@ -605,6 +624,35 @@ func GetGainModes(bladeRF BladeRF, channel Channel) ([]GainModes, error) {
 	return gainModes, nil
 }
 
+func GetLoopbackModes(bladeRF BladeRF) ([]LoopbackModes, error) {
+	var loopbackMode *C.struct_bladerf_loopback_modes
+	var loopbackModes []LoopbackModes
+
+	countOrCode := C.bladerf_get_loopback_modes(bladeRF.ref, &loopbackMode)
+
+	if countOrCode < 0 {
+		return nil, GetError(countOrCode)
+	}
+
+	if countOrCode == 0 {
+		return make([]LoopbackModes, 0), nil
+	}
+
+	count := int(countOrCode)
+
+	if count > 0 {
+		size := unsafe.Sizeof(*loopbackMode)
+
+		for i := 0; i < count; i++ {
+			loopbackModes = append(loopbackModes, NewLoopbackModes(
+				(*C.struct_bladerf_loopback_modes)(unsafe.Pointer(uintptr(unsafe.Pointer(loopbackMode))+(uintptr(i)*size))),
+			))
+		}
+	}
+
+	return loopbackModes, nil
+}
+
 func SetGainMode(bladeRF BladeRF, channel Channel, mode GainMode) error {
 	return GetError(C.bladerf_set_gain_mode(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_gain_mode(mode)))
 }
@@ -615,6 +663,41 @@ func EnableModule(bladeRF BladeRF, channel Channel) error {
 
 func DisableModule(bladeRF BladeRF, channel Channel) error {
 	return GetError(C.bladerf_enable_module(bladeRF.ref, C.bladerf_channel(channel), false))
+}
+
+func TriggerInit(bladeRF BladeRF, channel Channel, signal TriggerSignal) (Trigger, error) {
+	var trigger C.struct_bladerf_trigger
+	err := GetError(C.bladerf_trigger_init(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_trigger_signal(signal), &trigger))
+
+	if err != nil {
+		return Trigger{}, err
+	}
+
+	return Trigger{ref: &trigger}, nil
+}
+
+func TriggerArm(bladeRF BladeRF, trigger Trigger, arm bool, resV1 uint64, resV2 uint64) error {
+	return GetError(C.bladerf_trigger_arm(bladeRF.ref, trigger.ref, C.bool(arm), C.uint64_t(resV1), C.uint64_t(resV2)))
+}
+
+func TriggerFire(bladeRF BladeRF, trigger Trigger) error {
+	return GetError(C.bladerf_trigger_fire(bladeRF.ref, trigger.ref))
+}
+
+func TriggerState(bladeRF BladeRF, trigger Trigger) (bool, bool, bool, uint64, uint64, error) {
+	var isArmed C.bool
+	var hasFired C.bool
+	var fireRequested C.bool
+	var resV1 C.uint64_t
+	var resV2 C.uint64_t
+
+	err := GetError(C.bladerf_trigger_state(bladeRF.ref, trigger.ref, &isArmed, &hasFired, &fireRequested, &resV1, &resV2))
+
+	if err != nil {
+		return false, false, false, 0, 0, err
+	}
+
+	return bool(isArmed), bool(hasFired), bool(fireRequested), uint64(resV1), uint64(resV2), nil
 }
 
 func SyncRX(bladeRF BladeRF, bufferSize uintptr) ([]int16, error) {

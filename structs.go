@@ -116,6 +116,29 @@ type Stream struct {
 	ref *C.struct_bladerf_stream
 }
 
+type Trigger struct {
+	ref *C.struct_bladerf_trigger
+}
+
+func (trigger *Trigger) SetRole(role TriggerRole) {
+	(*trigger.ref).role = C.bladerf_trigger_role(role)
+}
+
+type LoopbackModes struct {
+	ref  *C.struct_bladerf_loopback_modes
+	name string
+	mode Loopback
+}
+
+func NewLoopbackModes(ref *C.struct_bladerf_loopback_modes) LoopbackModes {
+	loopbackModes := LoopbackModes{ref: ref}
+
+	loopbackModes.name = C.GoString(loopbackModes.ref.name)
+	loopbackModes.mode = Loopback(loopbackModes.ref.mode)
+
+	return loopbackModes
+}
+
 type GainModes struct {
 	ref  *C.struct_bladerf_gain_modes
 	name string

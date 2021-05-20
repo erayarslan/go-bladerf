@@ -1,4 +1,5 @@
 #include <libbladeRF.h>
 
-int ChannelRX(const int ch);
-int ChannelTX(const int ch);
+int ChannelRx(const int ch);
+int ChannelTx(const int ch);
+int ChannelIsTx(const int ch);

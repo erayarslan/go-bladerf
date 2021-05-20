@@ -19,6 +19,8 @@ type Loopback int
 type PmicRegister int
 type PowerSource int
 type RxMux int
+type TriggerRole int
+type TriggerSignal int
 
 const (
 	BackendAny     Backend = C.BLADERF_BACKEND_ANY
@@ -85,8 +87,9 @@ const (
 )
 
 const (
-	ModuleTx Module = C.BLADERF_MODULE_TX
-	ModuleRx Module = C.BLADERF_MODULE_RX
+	ModuleInvalid Module = C.BLADERF_MODULE_INVALID
+	ModuleTx      Module = C.BLADERF_MODULE_TX
+	ModuleRx      Module = C.BLADERF_MODULE_RX
 )
 
 const (
@@ -123,4 +126,26 @@ const (
 	RxMux12BitCounter    RxMux = C.BLADERF_RX_MUX_12BIT_COUNTER
 	RxMux32BitCounter    RxMux = C.BLADERF_RX_MUX_32BIT_COUNTER
 	RxMuxDigitalLoopback RxMux = C.BLADERF_RX_MUX_DIGITAL_LOOPBACK
+)
+
+const (
+	TriggerRoleInvalid  TriggerRole = C.BLADERF_TRIGGER_ROLE_INVALID
+	TriggerRoleDisabled TriggerRole = C.BLADERF_TRIGGER_ROLE_DISABLED
+	TriggerRoleMaster   TriggerRole = C.BLADERF_TRIGGER_ROLE_MASTER
+	TriggerRoleSlave    TriggerRole = C.BLADERF_TRIGGER_ROLE_SLAVE
+)
+
+const (
+	TriggerSignalInvalid  TriggerSignal = C.BLADERF_TRIGGER_INVALID
+	TriggerSignalJ714     TriggerSignal = C.BLADERF_TRIGGER_J71_4
+	TriggerSignalJ511     TriggerSignal = C.BLADERF_TRIGGER_J51_1
+	TriggerSignalMiniExp1 TriggerSignal = C.BLADERF_TRIGGER_MINI_EXP_1
+	TriggerSignalUser0    TriggerSignal = C.BLADERF_TRIGGER_USER_0
+	TriggerSignalUser1    TriggerSignal = C.BLADERF_TRIGGER_USER_1
+	TriggerSignalUser2    TriggerSignal = C.BLADERF_TRIGGER_USER_2
+	TriggerSignalUser3    TriggerSignal = C.BLADERF_TRIGGER_USER_3
+	TriggerSignalUser4    TriggerSignal = C.BLADERF_TRIGGER_USER_4
+	TriggerSignalUser5    TriggerSignal = C.BLADERF_TRIGGER_USER_5
+	TriggerSignalUser6    TriggerSignal = C.BLADERF_TRIGGER_USER_6
+	TriggerSignalUser7    TriggerSignal = C.BLADERF_TRIGGER_USER_7
 )

@@ -267,6 +267,78 @@ func TestGetFpgaVersion(t *testing.T) {
 	fmt.Print(version.describe)
 }
 
+func TestGetLoopbackModes(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices, _ := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDeviceInfo(devices[0])
+	defer Close(rf)
+
+	modes, _ := GetLoopbackModes(rf)
+	for _, v := range modes {
+		fmt.Printf("%s\n\n", v.name)
+	}
+}
+
+func TestTrigger(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices, _ := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDeviceInfo(devices[0])
+	defer Close(rf)
+
+	channel := ChannelRx(0)
+	signal := TriggerSignalJ714
+
+	triggerMaster, err := TriggerInit(rf, channel, signal)
+
+	if err != nil {
+		panic(err)
+	}
+
+	triggerMaster.SetRole(TriggerRoleMaster)
+
+	triggerSlave, err := TriggerInit(rf, channel, signal)
+
+	if err != nil {
+		panic(err)
+	}
+
+	triggerSlave.SetRole(TriggerRoleSlave)
+
+	err = TriggerArm(rf, triggerMaster, true, 0, 0)
+
+	if err != nil {
+		panic(err)
+	}
+
+	err = TriggerFire(rf, triggerMaster)
+
+	if err != nil {
+		panic(err)
+	}
+
+	a, b, c, x, y, err := TriggerState(rf, triggerMaster)
+
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(a, b, c, x, y)
+}
+
 func TestIsFpgaConfigured(t *testing.T) {
 	log.SetVerbosity(log.Debug)
 
@@ -358,6 +430,18 @@ func TestSetGainStage(t *testing.T) {
 	_ = SetGainStage(rf, ChannelRx(1), stages[0], int(bfRange.max))
 	gain, _ := GetGainStage(rf, ChannelRx(1), stages[0])
 	fmt.Println(gain)
+}
+
+func TestChannel(t *testing.T) {
+	a := ChannelRx(0)
+	b := ChannelTx(0)
+	c := ChannelRx(1)
+	d := ChannelTx(1)
+	fmt.Println(a, b, c, d)
+	fmt.Println(ChannelIsTx(0))
+	fmt.Println(ChannelIsTx(1))
+	fmt.Println(ChannelIsTx(2))
+	fmt.Println(ChannelIsTx(3))
 }
 
 func TestStream(t *testing.T) {

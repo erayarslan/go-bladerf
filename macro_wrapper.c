@@ -1,11 +1,13 @@
 #include "macro_wrapper.h"
 
-int ChannelRX(const int ch)
-{
- return BLADERF_CHANNEL_RX(ch);
+int ChannelRx(const int ch) {
+  return BLADERF_CHANNEL_RX(ch);
 }
 
-int ChannelTX(const int ch)
-{
- return BLADERF_CHANNEL_TX(ch);
+int ChannelTx(const int ch) {
+  return BLADERF_CHANNEL_TX(ch);
+}
+
+int ChannelIsTx(const int ch) {
+  return BLADERF_CHANNEL_IS_TX(ch);
 }
