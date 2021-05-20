@@ -21,6 +21,7 @@ type PowerSource int
 type RxMux int
 type TriggerRole int
 type TriggerSignal int
+type Timestamp uint64
 
 const (
 	BackendAny     Backend = C.BLADERF_BACKEND_ANY

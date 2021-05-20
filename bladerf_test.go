@@ -286,6 +286,38 @@ func TestGetLoopbackModes(t *testing.T) {
 	}
 }
 
+func TestGetQuickTune(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices, _ := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := OpenWithDeviceInfo(devices[0])
+	defer Close(rf)
+
+	channel := ChannelRx(1)
+
+	quickTune, err := GetQuickTune(rf, channel)
+
+	if err != nil {
+		panic(err)
+	}
+
+	err = ScheduleReTune(rf, channel, ReTuneNow, 96600000, quickTune)
+
+	if err != nil {
+		panic(err)
+	}
+}
+
+func TestReTuneNow(t *testing.T) {
+	fmt.Println(ReTuneNow)
+}
+
 func TestTrigger(t *testing.T) {
 	log.SetVerbosity(log.Debug)
 

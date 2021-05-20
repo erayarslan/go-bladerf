@@ -3,6 +3,8 @@ package bladerf
 // #include "macro_wrapper.h"
 import "C"
 
+var ReTuneNow = Timestamp(C.ReTuneNow)
+
 func ChannelRx(ch int) Channel {
 	return Channel(C.ChannelRx(C.int(ch)))
 }

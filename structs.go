@@ -96,6 +96,10 @@ type BladeRF struct {
 	ref *C.struct_bladerf
 }
 
+type QuickTune struct {
+	ref *C.struct_bladerf_quick_tune
+}
+
 type Serial struct {
 	ref    *C.struct_bladerf_serial
 	serial string

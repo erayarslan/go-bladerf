@@ -66,6 +66,22 @@ func GetFpgaSize(bladeRF BladeRF) (FpgaSize, error) {
 	return FpgaSize(size), nil
 }
 
+func GetQuickTune(bladeRF BladeRF, channel Channel) (QuickTune, error) {
+	var quickTune C.struct_bladerf_quick_tune
+
+	err := GetError(C.bladerf_get_quick_tune(bladeRF.ref, C.bladerf_channel(channel), &quickTune))
+
+	if err != nil {
+		return QuickTune{}, err
+	}
+
+	return QuickTune{ref: &quickTune}, nil
+}
+
+func CancelScheduledReTunes(bladeRF BladeRF, channel Channel) error {
+	return GetError(C.bladerf_cancel_scheduled_retunes(bladeRF.ref, C.bladerf_channel(channel)))
+}
+
 func GetFpgaSource(bladeRF BladeRF) (FpgaSource, error) {
 	var source C.bladerf_fpga_source
 	err := GetError(C.bladerf_get_fpga_source(bladeRF.ref, &source))
@@ -300,6 +316,10 @@ func GetLoopback(bladeRF BladeRF) (Loopback, error) {
 	return Loopback(loopback), nil
 }
 
+func ScheduleReTune(bladeRF BladeRF, channel Channel, timestamp Timestamp, frequency uint64, quickTune QuickTune) error {
+	return GetError(C.bladerf_schedule_retune(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_timestamp(timestamp), C.bladerf_frequency(frequency), quickTune.ref))
+}
+
 func SelectBand(bladeRF BladeRF, channel Channel, frequency uint64) error {
 	return GetError(C.bladerf_select_band(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_frequency(frequency)))
 }
@@ -519,6 +539,21 @@ func GetNumberOfGainStages(bladeRF BladeRF, channel Channel) (int, error) {
 	}
 
 	return int(countOrCode), nil
+}
+
+func SetCorrection(bladeRF BladeRF, channel Channel, correction Correction, correctionValue int16) error {
+	return GetError(C.bladerf_set_correction(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_correction(correction), C.bladerf_correction_value(correctionValue)))
+}
+
+func GetCorrection(bladeRF BladeRF, channel Channel, correction Correction) (uint16, error) {
+	var correctionValue C.int16_t
+	err := GetError(C.bladerf_get_correction(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_correction(correction), &correctionValue))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return uint16(correctionValue), nil
 }
 
 func BackendString(backend Backend) string {
