@@ -23,6 +23,7 @@ type TriggerRole int
 type TriggerSignal int
 type ExpansionBoard int
 type VctcxoTamerMode int
+type TuningMode int
 
 const (
 	BackendAny     Backend = C.BLADERF_BACKEND_ANY
@@ -164,4 +165,10 @@ const (
 	VctcxoTamerModeDisabled VctcxoTamerMode = C.BLADERF_VCTCXO_TAMER_DISABLED
 	VctcxoTamerMode1Pps     VctcxoTamerMode = C.BLADERF_VCTCXO_TAMER_1_PPS
 	VctcxoTamerMode10Mhz    VctcxoTamerMode = C.BLADERF_VCTCXO_TAMER_10_MHZ
+)
+
+const (
+	TuningModeInvalid TuningMode = C.BLADERF_TUNING_MODE_INVALID
+	TuningModeHost    TuningMode = C.BLADERF_TUNING_MODE_HOST
+	TuningModeFpga    TuningMode = C.BLADERF_TUNING_MODE_FPGA
 )

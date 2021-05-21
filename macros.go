@@ -5,6 +5,11 @@ import "C"
 
 var ReTuneNow = Timestamp(C.ReTuneNow)
 
+var TriggerRegArm = C.TriggerRegArm
+var TriggerRegFire = C.TriggerRegFire
+var TriggerRegMaster = C.TriggerRegMaster
+var TriggerRegLine = C.TriggerRegLine
+
 func ChannelRx(ch int) Channel {
 	return Channel(C.ChannelRx(C.int(ch)))
 }

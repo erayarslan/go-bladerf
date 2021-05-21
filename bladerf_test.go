@@ -340,6 +340,13 @@ func TestReTuneNow(t *testing.T) {
 	fmt.Println(ReTuneNow)
 }
 
+func TestTriggerReg(t *testing.T) {
+	fmt.Println(TriggerRegArm)
+	fmt.Println(TriggerRegFire)
+	fmt.Println(TriggerRegMaster)
+	fmt.Println(TriggerRegLine)
+}
+
 func TestTrigger(t *testing.T) {
 	log.SetVerbosity(log.Debug)
 

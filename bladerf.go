@@ -939,3 +939,95 @@ func (bladeRF *BladeRF) TrimDacRead() (uint16, error) {
 func (bladeRF *BladeRF) TrimDacWrite(val uint16) error {
 	return GetError(C.bladerf_trim_dac_write(bladeRF.ref, C.uint16_t(val)))
 }
+
+func (bladeRF *BladeRF) SetTuningMode(mode TuningMode) error {
+	return GetError(C.bladerf_set_tuning_mode(bladeRF.ref, C.bladerf_tuning_mode(mode)))
+}
+
+func (bladeRF *BladeRF) GetTuningMode() (TuningMode, error) {
+	var mode C.bladerf_tuning_mode
+	err := GetError(C.bladerf_get_tuning_mode(bladeRF.ref, &mode))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return TuningMode(mode), nil
+}
+
+func (bladeRF *BladeRF) ReadTrigger(channel Channel, signal TriggerSignal) (uint8, error) {
+	var val C.uint8_t
+	err := GetError(C.bladerf_read_trigger(
+		bladeRF.ref,
+		C.bladerf_channel(channel), C.bladerf_trigger_signal(signal), &val))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return uint8(val), nil
+}
+
+func (bladeRF *BladeRF) WriteTrigger(channel Channel, signal TriggerSignal, val uint8) error {
+	return GetError(C.bladerf_write_trigger(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_trigger_signal(signal), C.uint8_t(val)))
+}
+
+func (bladeRF *BladeRF) ConfigGpioRead() (uint32, error) {
+	var val C.uint32_t
+	err := GetError(C.bladerf_config_gpio_read(bladeRF.ref, &val))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return uint32(val), nil
+}
+
+func (bladeRF *BladeRF) ConfigGpioWrite(val uint32) error {
+	return GetError(C.bladerf_config_gpio_write(bladeRF.ref, C.uint32_t(val)))
+}
+
+func (bladeRF *BladeRF) EraseFlash(eraseBlock uint32, count uint32) error {
+	return GetError(C.bladerf_erase_flash(bladeRF.ref, C.uint32_t(eraseBlock), C.uint32_t(count)))
+}
+
+func (bladeRF *BladeRF) EraseFlashBytes(address uint32, length uint32) error {
+	return GetError(C.bladerf_erase_flash_bytes(bladeRF.ref, C.uint32_t(address), C.uint32_t(length)))
+}
+
+func (bladeRF *BladeRF) LockOtp() error {
+	return GetError(C.bladerf_lock_otp(bladeRF.ref))
+}
+
+// ReadFlash ToDo: Test It
+func (bladeRF *BladeRF) ReadFlash(page uint32, count uint32) error {
+	buf := C.malloc(C.size_t(C.sizeof_uint8_t * count))
+	return GetError(C.bladerf_read_flash(bladeRF.ref, (*C.uint8_t)(buf), C.uint32_t(page), C.uint32_t(count)))
+}
+
+// ReadFlashBytes Todo: Test It
+func (bladeRF *BladeRF) ReadFlashBytes(address uint32, bytes uint32) error {
+	buf := C.malloc(C.ulong(bytes))
+	return GetError(C.bladerf_read_flash_bytes(bladeRF.ref, (*C.uint8_t)(buf), C.uint32_t(address), C.uint32_t(bytes)))
+}
+
+// ReadOtp Todo: Test It
+func (bladeRF *BladeRF) ReadOtp() error {
+	buf := C.malloc(256)
+	return GetError(C.bladerf_read_otp(bladeRF.ref, (*C.uint8_t)(buf)))
+}
+
+// WriteFlash Todo: Test It
+func (bladeRF *BladeRF) WriteFlash(buf []uint8, page uint32, count uint32) error {
+	return GetError(C.bladerf_write_flash(bladeRF.ref, (*C.uint8_t)(unsafe.Pointer(&buf[0])), C.uint32_t(page), C.uint32_t(count)))
+}
+
+// WriteFlashBytes Todo: Test It
+func (bladeRF *BladeRF) WriteFlashBytes(buf []uint8, address uint32, bytes uint32) error {
+	return GetError(C.bladerf_write_flash_bytes(bladeRF.ref, (*C.uint8_t)(unsafe.Pointer(&buf[0])), C.uint32_t(address), C.uint32_t(bytes)))
+}
+
+// WriteOtp Todo: Test It
+func (bladeRF *BladeRF) WriteOtp(buf []uint8) error {
+	return GetError(C.bladerf_write_otp(bladeRF.ref, (*C.uint8_t)(unsafe.Pointer(&buf[0]))))
+}
