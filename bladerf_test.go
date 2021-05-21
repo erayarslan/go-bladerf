@@ -56,12 +56,12 @@ func GetFinalDataString(input []int16) string {
 }
 
 func TestBackendSTR(t *testing.T) {
-	x := BackendString(BackendLibUSB)
-	y := BackendString(BackendDummy)
-	z := BackendString(BackendAny)
-	a := BackendString(BackendCypress)
-	b := BackendString(BackendLinux)
-	fmt.Println(x, y, z, a, b)
+	x := BackendLibUSB
+	y := BackendDummy
+	z := BackendAny
+	a := BackendCypress
+	b := BackendLinux
+	fmt.Println(x.String(), y.String(), z.String(), a.String(), b.String())
 }
 
 func TestSetUSBResetOnOpen(t *testing.T) {
@@ -79,10 +79,10 @@ func TestGetSerial(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	serial, _ := GetSerial(rf)
+	serial, _ := rf.GetSerial()
 	fmt.Println(serial)
 }
 
@@ -96,10 +96,10 @@ func TestGetSerialStruct(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	serial, _ := GetSerialStruct(rf)
+	serial, _ := rf.GetSerialStruct()
 	fmt.Print(serial)
 }
 
@@ -113,10 +113,10 @@ func TestGetFpgaSize(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	size, _ := GetFpgaSize(rf)
+	size, _ := rf.GetFpgaSize()
 	fmt.Print(size)
 }
 
@@ -130,10 +130,10 @@ func TestGetFpgaSource(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	source, _ := GetFpgaSource(rf)
+	source, _ := rf.GetFpgaSource()
 	fmt.Print(source)
 }
 
@@ -147,10 +147,10 @@ func TestGetDeviceSpeed(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	speed := GetDeviceSpeed(rf)
+	speed := rf.GetDeviceSpeed()
 	fmt.Print(speed)
 }
 
@@ -164,10 +164,10 @@ func TestGetBoardName(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	name := GetBoardName(rf)
+	name := rf.GetBoardName()
 	fmt.Print(name)
 }
 
@@ -181,10 +181,10 @@ func TestGetRationalSampleRate(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	rate, _ := GetRationalSampleRate(rf, ChannelRx(1))
+	rate, _ := rf.GetRationalSampleRate(ChannelRx(1))
 	fmt.Print(rate)
 }
 
@@ -198,10 +198,10 @@ func TestGetFpgaBytes(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	bytes, _ := GetFpgaBytes(rf)
+	bytes, _ := rf.GetFpgaBytes()
 	fmt.Print(bytes)
 }
 
@@ -215,10 +215,10 @@ func TestGetFpgaFlashSize(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	size, guess, err := GetFpgaFlashSize(rf)
+	size, guess, err := rf.GetFpgaFlashSize()
 
 	if err != nil {
 		panic(err)
@@ -238,10 +238,10 @@ func TestGetFirmwareVersion(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	version, err := GetFirmwareVersion(rf)
+	version, err := rf.GetFirmwareVersion()
 
 	if err != nil {
 		panic(err)
@@ -260,10 +260,10 @@ func TestGetFpgaVersion(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	version, _ := GetFpgaVersion(rf)
+	version, _ := rf.GetFpgaVersion()
 	fmt.Print(version.describe)
 }
 
@@ -277,10 +277,10 @@ func TestGetLoopbackModes(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	modes, _ := GetLoopbackModes(rf)
+	modes, _ := rf.GetLoopbackModes()
 	for _, v := range modes {
 		fmt.Printf("%s\n\n", v.name)
 	}
@@ -296,18 +296,18 @@ func TestGetQuickTune(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
 	channel := ChannelRx(1)
 
-	quickTune, err := GetQuickTune(rf, channel)
+	quickTune, err := rf.GetQuickTune(channel)
 
 	if err != nil {
 		panic(err)
 	}
 
-	err = ScheduleReTune(rf, channel, ReTuneNow, 96600000, quickTune)
+	err = rf.ScheduleReTune(channel, ReTuneNow, 96600000, quickTune)
 
 	if err != nil {
 		panic(err)
@@ -324,10 +324,10 @@ func TestExpansionBoard(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	board, err := GetAttachedExpansionBoard(rf)
+	board, err := rf.GetAttachedExpansionBoard()
 
 	if err != nil {
 		panic(err)
@@ -350,13 +350,13 @@ func TestTrigger(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
 	channel := ChannelRx(0)
 	signal := TriggerSignalJ714
 
-	triggerMaster, err := TriggerInit(rf, channel, signal)
+	triggerMaster, err := rf.TriggerInit(channel, signal)
 
 	if err != nil {
 		panic(err)
@@ -364,7 +364,7 @@ func TestTrigger(t *testing.T) {
 
 	triggerMaster.SetRole(TriggerRoleMaster)
 
-	triggerSlave, err := TriggerInit(rf, channel, signal)
+	triggerSlave, err := rf.TriggerInit(channel, signal)
 
 	if err != nil {
 		panic(err)
@@ -372,19 +372,19 @@ func TestTrigger(t *testing.T) {
 
 	triggerSlave.SetRole(TriggerRoleSlave)
 
-	err = TriggerArm(rf, triggerMaster, true, 0, 0)
+	err = rf.TriggerArm(triggerMaster, true, 0, 0)
 
 	if err != nil {
 		panic(err)
 	}
 
-	err = TriggerFire(rf, triggerMaster)
+	err = rf.TriggerFire(triggerMaster)
 
 	if err != nil {
 		panic(err)
 	}
 
-	a, b, c, x, y, err := TriggerState(rf, triggerMaster)
+	a, b, c, x, y, err := rf.TriggerState(triggerMaster)
 
 	if err != nil {
 		panic(err)
@@ -403,10 +403,10 @@ func TestIsFpgaConfigured(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	isConfigured, err := IsFpgaConfigured(rf)
+	isConfigured, err := rf.IsFpgaConfigured()
 
 	if err != nil {
 		panic(err)
@@ -418,50 +418,51 @@ func TestIsFpgaConfigured(t *testing.T) {
 func TestBladeRF(t *testing.T) {
 	log.SetVerbosity(log.Error)
 
-	PrintVersion(GetVersion())
+	version := GetVersion()
+	version.Print()
 
 	bootloaders, _ := GetBootloaderList()
 	fmt.Printf("Bootloaders Len: %d\n", len(bootloaders))
 
 	devices, _ := GetDeviceList()
 	fmt.Printf("Devices Len: %d\n", len(devices))
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	_ = LoadFpga(rf, "/Users/erayarslan/Downloads/hostedxA4-latest.rbf")
-	Close(rf)
+	rf, _ := devices[0].Open()
+	_ = rf.LoadFpga("/Users/erayarslan/Downloads/hostedxA4-latest.rbf")
+	rf.Close()
 
 	rf, _ = Open()
-	info, _ := GetDeviceInfo(rf)
-	Close(rf)
-	h, _ := GetDeviceInfo(rf)
-	out, _ := OpenWithDeviceInfo(h)
-	Close(out)
+	info, _ := rf.GetDeviceInfo()
+	rf.Close()
+	h, _ := rf.GetDeviceInfo()
+	out, _ := h.Open()
+	out.Close()
 	c1, _ := Open()
-	Close(c1)
+	c1.Close()
 	c2, _ := OpenWithDeviceIdentifier("*:serial=" + info.serial)
-	Close(c2)
+	c2.Close()
 	o1, _ := GetDeviceInfoFromString("*:serial=" + info.serial)
-	out2, _ := OpenWithDeviceInfo(o1)
-	Close(out2)
+	out2, _ := o1.Open()
+	out2.Close()
 
-	g, _ := GetDeviceInfo(rf)
-	result := DeviceInfoMatches(g, g)
+	g, _ := rf.GetDeviceInfo()
+	result := g.DeviceInfoMatches(g)
 	fmt.Println("---------")
 	fmt.Println(result)
 	fmt.Println("---------")
 
-	g0, _ := GetDeviceInfo(rf)
-	result = DeviceStringMatches("*:serial="+info.serial, g0)
+	g0, _ := rf.GetDeviceInfo()
+	result = g0.DeviceStringMatches("*:serial=" + info.serial)
 	fmt.Println("---------")
 	fmt.Println(result)
 	fmt.Println("---------")
 
 	rf, _ = Open()
 
-	err := EnableModule(rf, ChannelRx(1))
+	err := rf.EnableModule(ChannelRx(1))
 	if err != nil {
 		fmt.Println(err)
 	}
-	_, _ = InitStream(rf, FormatSc16Q11, 16, audioBufferSize, 8, cb)
+	_, _ = rf.InitStream(FormatSc16Q11, 16, audioBufferSize, 8, cb)
 	// _ = StartStream(stream, RX_X1)
 }
 
@@ -475,14 +476,14 @@ func TestSetGainStage(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	stages, _ := GetGainStages(rf, ChannelRx(1))
+	stages, _ := rf.GetGainStages(ChannelRx(1))
 	fmt.Println(len(stages))
-	bfRange, _ := GetGainStageRange(rf, ChannelRx(1), stages[0])
-	_ = SetGainStage(rf, ChannelRx(1), stages[0], int(bfRange.max))
-	gain, _ := GetGainStage(rf, ChannelRx(1), stages[0])
+	bfRange, _ := rf.GetGainStageRange(ChannelRx(1), stages[0])
+	_ = rf.SetGainStage(ChannelRx(1), stages[0], int(bfRange.max))
+	gain, _ := rf.GetGainStage(ChannelRx(1), stages[0])
 	fmt.Println(gain)
 }
 
@@ -512,18 +513,18 @@ func TestStream(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	_ = SetFrequency(rf, channel, 96600000)
-	_range, _ := GetSampleRateRange(rf, channel)
+	_ = rf.SetFrequency(channel, 96600000)
+	_range, _ := rf.GetSampleRateRange(channel)
 	fmt.Printf("Min: %d, Max: %d, Step: %d\n", _range.min, _range.max, _range.step)
-	_, _ = SetSampleRate(rf, channel, 4e6)
-	_ = SyncConfig(rf, RxX2, FormatSc16Q11, 16, audioBufferSize, 8, 32)
-	actual, _ := SetBandwidth(rf, channel, 240000)
+	_, _ = rf.SetSampleRate(channel, 4e6)
+	_ = rf.SyncConfig(RxX2, FormatSc16Q11, 16, audioBufferSize, 8, 32)
+	actual, _ := rf.SetBandwidth(channel, 240000)
 	fmt.Println(actual)
-	_ = EnableModule(rf, channel)
-	_ = SetGainMode(rf, channel, GainModeHybridAgc)
+	_ = rf.EnableModule(channel)
+	_ = rf.SetGainMode(channel, GainModeHybridAgc)
 
 	demodulator = demodcore.MakeWBFMDemodulator(uint32(2e6), 80e3, 48000)
 
@@ -541,7 +542,7 @@ func TestStream(t *testing.T) {
 
 	go func() {
 		for {
-			data, _ := SyncRX(rf, audioBufferSize)
+			data, _ := rf.SyncRX(audioBufferSize)
 			out := demodulator.Work(GetFinalData(data))
 
 			if out != nil {
@@ -584,10 +585,10 @@ func TestGetGainModes(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	_, _ = GetGainModes(rf, ChannelRx(1))
+	_, _ = rf.GetGainModes(ChannelRx(1))
 }
 
 func TestGetGainRange(t *testing.T) {
@@ -600,10 +601,10 @@ func TestGetGainRange(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	bfRange, _ := GetGainRange(rf, ChannelRx(1))
+	bfRange, _ := rf.GetGainRange(ChannelRx(1))
 	fmt.Println(bfRange.max)
 }
 
@@ -618,18 +619,18 @@ func TestGPSData(t *testing.T) {
 		return
 	}
 
-	rf, _ := OpenWithDeviceInfo(devices[0])
-	defer Close(rf)
+	rf, _ := devices[0].Open()
+	defer rf.Close()
 
-	_ = SetFrequency(rf, channel, 1525420000)
-	_ = SyncConfig(rf, RxX2, FormatSc16Q11, 16, audioBufferSize, 8, 32)
-	_, _ = SetSampleRate(rf, channel, 2600000)
-	_, _ = SetBandwidth(rf, channel, 2500000)
-	_ = SetGainMode(rf, channel, GainModeHybridAgc)
-	_ = EnableModule(rf, channel)
+	_ = rf.SetFrequency(channel, 1525420000)
+	_ = rf.SyncConfig(RxX2, FormatSc16Q11, 16, audioBufferSize, 8, 32)
+	_, _ = rf.SetSampleRate(channel, 2600000)
+	_, _ = rf.SetBandwidth(channel, 2500000)
+	_ = rf.SetGainMode(channel, GainModeHybridAgc)
+	_ = rf.EnableModule(channel)
 
 	for {
-		data, _ := SyncRX(rf, audioBufferSize)
+		data, _ := rf.SyncRX(audioBufferSize)
 		out := GetFinalDataString(data)
 		fmt.Println(out)
 	}
@@ -654,28 +655,28 @@ func TestAsyncStream(t *testing.T) {
 		return
 	}
 
-	rf, err := OpenWithDeviceInfo(devices[0])
+	rf, err := devices[0].Open()
 
 	if err != nil {
 		panic(err)
 	}
 
-	defer Close(rf)
+	defer rf.Close()
 
-	_ = SetFrequency(rf, channel, 96600000)
-	_, _ = SetSampleRate(rf, channel, 4e6)
-	_, _ = SetBandwidth(rf, channel, 240000)
-	_ = SetGainMode(rf, channel, GainModeHybridAgc)
-	_ = EnableModule(rf, channel)
+	_ = rf.SetFrequency(channel, 96600000)
+	_, _ = rf.SetSampleRate(channel, 4e6)
+	_, _ = rf.SetBandwidth(channel, 240000)
+	_ = rf.SetGainMode(channel, GainModeHybridAgc)
+	_ = rf.EnableModule(channel)
 
-	rxStream, err := InitStream(rf, FormatSc16Q11, 16, audioBufferSize, 8, cb)
+	rxStream, err := rf.InitStream(FormatSc16Q11, 16, audioBufferSize, 8, cb)
 	if err != nil {
 		panic(err)
 	}
-	defer DeInitStream(rxStream)
+	defer rxStream.DeInit()
 
-	_ = SetStreamTimeout(rf, Rx, 32)
-	timeout, _ := GetStreamTimeout(rf, Rx)
+	_ = rf.SetStreamTimeout(Rx, 32)
+	timeout, _ := rf.GetStreamTimeout(Rx)
 	println(timeout)
 
 	demodulator = demodcore.MakeWBFMDemodulator(uint32(2e6), 80e3, 48000)
@@ -693,7 +694,7 @@ func TestAsyncStream(t *testing.T) {
 	_ = audioStream.Start()
 
 	go func() {
-		err = StartStream(rxStream, RxX2)
+		err = rxStream.Start(RxX2)
 		if err != nil {
 			panic(err)
 		}

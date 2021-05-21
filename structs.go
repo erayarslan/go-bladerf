@@ -126,10 +126,6 @@ type Trigger struct {
 	ref *C.struct_bladerf_trigger
 }
 
-func (trigger *Trigger) SetRole(role TriggerRole) {
-	(*trigger.ref).role = C.bladerf_trigger_role(role)
-}
-
 type LoopbackModes struct {
 	ref  *C.struct_bladerf_loopback_modes
 	name string

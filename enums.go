@@ -22,6 +22,7 @@ type RxMux int
 type TriggerRole int
 type TriggerSignal int
 type ExpansionBoard int
+type VctcxoTamerMode int
 
 const (
 	BackendAny     Backend = C.BLADERF_BACKEND_ANY
@@ -156,4 +157,11 @@ const (
 	ExpansionBoard100  ExpansionBoard = C.BLADERF_XB_100
 	ExpansionBoard200  ExpansionBoard = C.BLADERF_XB_200
 	ExpansionBoard300  ExpansionBoard = C.BLADERF_XB_300
+)
+
+const (
+	VctcxoTamerModeInvalid  VctcxoTamerMode = C.BLADERF_VCTCXO_TAMER_INVALID
+	VctcxoTamerModeDisabled VctcxoTamerMode = C.BLADERF_VCTCXO_TAMER_DISABLED
+	VctcxoTamerMode1Pps     VctcxoTamerMode = C.BLADERF_VCTCXO_TAMER_1_PPS
+	VctcxoTamerMode10Mhz    VctcxoTamerMode = C.BLADERF_VCTCXO_TAMER_10_MHZ
 )

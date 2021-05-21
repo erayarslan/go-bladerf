@@ -27,15 +27,17 @@ func StreamCallback(
 	metadata *C.struct_bladerf_metadata,
 	samples unsafe.Pointer,
 	numSamples C.size_t,
-	userData unsafe.Pointer,
+	userDataPtr unsafe.Pointer,
 ) unsafe.Pointer {
-	ud := pointer.Restore(userData).(UserData)
+	userData := pointer.Restore(userDataPtr).(UserData)
 
 	for i := uint32(0); i < uint32(numSamples); i++ {
-		ud.results[i] = int16(*((*C.int16_t)(unsafe.Pointer(uintptr(samples) + (C.sizeof_int16_t * uintptr(i))))))
+		userData.results[i] = int16(
+			*((*C.int16_t)(unsafe.Pointer(uintptr(samples) + (C.sizeof_int16_t * uintptr(i))))),
+		)
 	}
 
-	ud.callback(ud.results)
+	userData.callback(userData.results)
 	return samples
 }
 
@@ -45,17 +47,17 @@ func GetVersion() Version {
 	return NewVersion(&version)
 }
 
-func PrintVersion(version Version) {
+func (version *Version) Print() {
 	fmt.Printf("v%d.%d.%d (\"%s\")", version.major, version.minor, version.patch, version.describe)
 }
 
-func LoadFpga(bladeRF BladeRF, imagePath string) error {
+func (bladeRF *BladeRF) LoadFpga(imagePath string) error {
 	path := C.CString(imagePath)
 	defer C.free(unsafe.Pointer(path))
 	return GetError(C.bladerf_load_fpga(bladeRF.ref, path))
 }
 
-func GetFpgaSize(bladeRF BladeRF) (FpgaSize, error) {
+func (bladeRF *BladeRF) GetFpgaSize() (FpgaSize, error) {
 	var size C.bladerf_fpga_size
 	err := GetError(C.bladerf_get_fpga_size(bladeRF.ref, &size))
 
@@ -66,7 +68,7 @@ func GetFpgaSize(bladeRF BladeRF) (FpgaSize, error) {
 	return FpgaSize(size), nil
 }
 
-func GetQuickTune(bladeRF BladeRF, channel Channel) (QuickTune, error) {
+func (bladeRF *BladeRF) GetQuickTune(channel Channel) (QuickTune, error) {
 	var quickTune C.struct_bladerf_quick_tune
 
 	err := GetError(C.bladerf_get_quick_tune(bladeRF.ref, C.bladerf_channel(channel), &quickTune))
@@ -78,11 +80,11 @@ func GetQuickTune(bladeRF BladeRF, channel Channel) (QuickTune, error) {
 	return QuickTune{ref: &quickTune}, nil
 }
 
-func CancelScheduledReTunes(bladeRF BladeRF, channel Channel) error {
+func (bladeRF *BladeRF) CancelScheduledReTunes(channel Channel) error {
 	return GetError(C.bladerf_cancel_scheduled_retunes(bladeRF.ref, C.bladerf_channel(channel)))
 }
 
-func GetFpgaSource(bladeRF BladeRF) (FpgaSource, error) {
+func (bladeRF *BladeRF) GetFpgaSource() (FpgaSource, error) {
 	var source C.bladerf_fpga_source
 	err := GetError(C.bladerf_get_fpga_source(bladeRF.ref, &source))
 
@@ -93,7 +95,7 @@ func GetFpgaSource(bladeRF BladeRF) (FpgaSource, error) {
 	return FpgaSource(source), nil
 }
 
-func GetFpgaBytes(bladeRF BladeRF) (uint32, error) {
+func (bladeRF *BladeRF) GetFpgaBytes() (uint32, error) {
 	var size C.size_t
 	err := GetError(C.bladerf_get_fpga_bytes(bladeRF.ref, &size))
 
@@ -104,7 +106,7 @@ func GetFpgaBytes(bladeRF BladeRF) (uint32, error) {
 	return uint32(size), nil
 }
 
-func GetFpgaFlashSize(bladeRF BladeRF) (uint32, bool, error) {
+func (bladeRF *BladeRF) GetFpgaFlashSize() (uint32, bool, error) {
 	var size C.uint32_t
 	var isGuess C.bool
 	err := GetError(C.bladerf_get_flash_size(bladeRF.ref, &size, &isGuess))
@@ -116,7 +118,7 @@ func GetFpgaFlashSize(bladeRF BladeRF) (uint32, bool, error) {
 	return uint32(size), bool(isGuess), nil
 }
 
-func GetFirmwareVersion(bladeRF BladeRF) (Version, error) {
+func (bladeRF *BladeRF) GetFirmwareVersion() (Version, error) {
 	var version C.struct_bladerf_version
 	err := GetError(C.bladerf_fw_version(bladeRF.ref, &version))
 
@@ -127,7 +129,7 @@ func GetFirmwareVersion(bladeRF BladeRF) (Version, error) {
 	return NewVersion(&version), nil
 }
 
-func IsFpgaConfigured(bladeRF BladeRF) (bool, error) {
+func (bladeRF *BladeRF) IsFpgaConfigured() (bool, error) {
 	out := C.bladerf_is_fpga_configured(bladeRF.ref)
 
 	if out < 0 {
@@ -137,11 +139,11 @@ func IsFpgaConfigured(bladeRF BladeRF) (bool, error) {
 	return out == 1, nil
 }
 
-func GetDeviceSpeed(bladeRF BladeRF) DeviceSpeed {
+func (bladeRF *BladeRF) GetDeviceSpeed() DeviceSpeed {
 	return DeviceSpeed(int(C.bladerf_device_speed(bladeRF.ref)))
 }
 
-func GetFpgaVersion(bladeRF BladeRF) (Version, error) {
+func (bladeRF *BladeRF) GetFpgaVersion() (Version, error) {
 	var version C.struct_bladerf_version
 	err := GetError(C.bladerf_fpga_version(bladeRF.ref, &version))
 
@@ -152,7 +154,7 @@ func GetFpgaVersion(bladeRF BladeRF) (Version, error) {
 	return NewVersion(&version), nil
 }
 
-func FreeDeviceList(deviceInfo DeviceInfo) {
+func (deviceInfo *DeviceInfo) FreeDeviceList() {
 	C.bladerf_free_device_list(deviceInfo.ref)
 }
 
@@ -181,7 +183,7 @@ func GetDeviceList() ([]DeviceInfo, error) {
 			))
 		}
 
-		FreeDeviceList(devices[0])
+		devices[0].FreeDeviceList()
 	}
 
 	return devices, nil
@@ -212,7 +214,7 @@ func GetBootloaderList() ([]DeviceInfo, error) {
 			))
 		}
 
-		FreeDeviceList(devices[0])
+		devices[0].FreeDeviceList()
 	}
 
 	return devices, nil
@@ -224,7 +226,7 @@ func InitDeviceInfo() DeviceInfo {
 	return NewDeviceInfo(&deviceInfo)
 }
 
-func GetDeviceInfo(bladeRF BladeRF) (DeviceInfo, error) {
+func (bladeRF *BladeRF) GetDeviceInfo() (DeviceInfo, error) {
 	var deviceInfo C.struct_bladerf_devinfo
 	err := GetError(C.bladerf_get_devinfo(bladeRF.ref, &deviceInfo))
 
@@ -235,11 +237,11 @@ func GetDeviceInfo(bladeRF BladeRF) (DeviceInfo, error) {
 	return NewDeviceInfo(&deviceInfo), nil
 }
 
-func DeviceInfoMatches(a DeviceInfo, b DeviceInfo) bool {
-	return bool(C.bladerf_devinfo_matches(a.ref, b.ref))
+func (deviceInfo *DeviceInfo) DeviceInfoMatches(target DeviceInfo) bool {
+	return bool(C.bladerf_devinfo_matches(deviceInfo.ref, target.ref))
 }
 
-func DeviceStringMatches(deviceString string, deviceInfo DeviceInfo) bool {
+func (deviceInfo *DeviceInfo) DeviceStringMatches(deviceString string) bool {
 	val := C.CString(deviceString)
 	defer C.free(unsafe.Pointer(val))
 
@@ -260,7 +262,7 @@ func GetDeviceInfoFromString(deviceString string) (DeviceInfo, error) {
 	return NewDeviceInfo(&deviceInfo), nil
 }
 
-func OpenWithDeviceInfo(deviceInfo DeviceInfo) (BladeRF, error) {
+func (deviceInfo *DeviceInfo) Open() (BladeRF, error) {
 	var bladeRF *C.struct_bladerf
 	err := GetError(C.bladerf_open_with_devinfo(&bladeRF, deviceInfo.ref))
 
@@ -293,19 +295,19 @@ func Open() (BladeRF, error) {
 	return BladeRF{ref: bladeRF}, nil
 }
 
-func Close(bladeRF BladeRF) {
+func (bladeRF *BladeRF) Close() {
 	C.bladerf_close(bladeRF.ref)
 }
 
-func SetLoopback(bladeRF BladeRF, loopback Loopback) error {
+func (bladeRF *BladeRF) SetLoopback(loopback Loopback) error {
 	return GetError(C.bladerf_set_loopback(bladeRF.ref, C.bladerf_loopback(loopback)))
 }
 
-func IsLoopbackModeSupported(bladeRF BladeRF, loopback Loopback) bool {
+func (bladeRF *BladeRF) IsLoopbackModeSupported(loopback Loopback) bool {
 	return bool(C.bladerf_is_loopback_mode_supported(bladeRF.ref, C.bladerf_loopback(loopback)))
 }
 
-func GetLoopback(bladeRF BladeRF) (Loopback, error) {
+func (bladeRF *BladeRF) GetLoopback() (Loopback, error) {
 	var loopback C.bladerf_loopback
 	err := GetError(C.bladerf_get_loopback(bladeRF.ref, &loopback))
 
@@ -316,19 +318,30 @@ func GetLoopback(bladeRF BladeRF) (Loopback, error) {
 	return Loopback(loopback), nil
 }
 
-func ScheduleReTune(bladeRF BladeRF, channel Channel, timestamp Timestamp, frequency uint64, quickTune QuickTune) error {
-	return GetError(C.bladerf_schedule_retune(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_timestamp(timestamp), C.bladerf_frequency(frequency), quickTune.ref))
+func (bladeRF *BladeRF) ScheduleReTune(
+	channel Channel,
+	timestamp Timestamp,
+	frequency uint64,
+	quickTune QuickTune,
+) error {
+	return GetError(C.bladerf_schedule_retune(
+		bladeRF.ref,
+		C.bladerf_channel(channel),
+		C.bladerf_timestamp(timestamp),
+		C.bladerf_frequency(frequency),
+		quickTune.ref,
+	))
 }
 
-func SelectBand(bladeRF BladeRF, channel Channel, frequency uint64) error {
+func (bladeRF *BladeRF) SelectBand(channel Channel, frequency uint64) error {
 	return GetError(C.bladerf_select_band(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_frequency(frequency)))
 }
 
-func SetFrequency(bladeRF BladeRF, channel Channel, frequency uint64) error {
+func (bladeRF *BladeRF) SetFrequency(channel Channel, frequency uint64) error {
 	return GetError(C.bladerf_set_frequency(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_frequency(frequency)))
 }
 
-func GetFrequency(bladeRF BladeRF, channel Channel) (uint64, error) {
+func (bladeRF *BladeRF) GetFrequency(channel Channel) (uint64, error) {
 	var frequency C.uint64_t
 	err := GetError(C.bladerf_get_frequency(bladeRF.ref, C.bladerf_channel(channel), &frequency))
 
@@ -339,9 +352,14 @@ func GetFrequency(bladeRF BladeRF, channel Channel) (uint64, error) {
 	return uint64(frequency), nil
 }
 
-func SetSampleRate(bladeRF BladeRF, channel Channel, sampleRate uint) (uint, error) {
+func (bladeRF *BladeRF) SetSampleRate(channel Channel, sampleRate uint) (uint, error) {
 	var actual C.uint
-	err := GetError(C.bladerf_set_sample_rate(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_sample_rate(sampleRate), &actual))
+	err := GetError(C.bladerf_set_sample_rate(
+		bladeRF.ref,
+		C.bladerf_channel(channel),
+		C.bladerf_sample_rate(sampleRate),
+		&actual),
+	)
 
 	if err != nil {
 		return 0, err
@@ -350,11 +368,11 @@ func SetSampleRate(bladeRF BladeRF, channel Channel, sampleRate uint) (uint, err
 	return uint(actual), nil
 }
 
-func SetRxMux(bladeRF BladeRF, mux RxMux) error {
+func (bladeRF *BladeRF) SetRxMux(mux RxMux) error {
 	return GetError(C.bladerf_set_rx_mux(bladeRF.ref, C.bladerf_rx_mux(mux)))
 }
 
-func GetRxMux(bladeRF BladeRF) (RxMux, error) {
+func (bladeRF *BladeRF) GetRxMux() (RxMux, error) {
 	var rxMux C.bladerf_rx_mux
 	err := GetError(C.bladerf_get_rx_mux(bladeRF.ref, &rxMux))
 
@@ -365,14 +383,19 @@ func GetRxMux(bladeRF BladeRF) (RxMux, error) {
 	return RxMux(rxMux), nil
 }
 
-func SetRationalSampleRate(bladeRF BladeRF, channel Channel, rationalRate RationalRate) (RationalRate, error) {
+func (bladeRF *BladeRF) SetRationalSampleRate(channel Channel, rationalRate RationalRate) (RationalRate, error) {
 	var actual C.struct_bladerf_rational_rate
 	rationalSampleRate := C.struct_bladerf_rational_rate{
 		num:     C.uint64_t(rationalRate.num),
 		integer: C.uint64_t(rationalRate.integer),
 		den:     C.uint64_t(rationalRate.den),
 	}
-	err := GetError(C.bladerf_set_rational_sample_rate(bladeRF.ref, C.bladerf_channel(channel), &rationalSampleRate, &actual))
+	err := GetError(C.bladerf_set_rational_sample_rate(
+		bladeRF.ref,
+		C.bladerf_channel(channel),
+		&rationalSampleRate,
+		&actual),
+	)
 
 	if err != nil {
 		return RationalRate{}, err
@@ -381,7 +404,7 @@ func SetRationalSampleRate(bladeRF BladeRF, channel Channel, rationalRate Ration
 	return NewRationalRate(&actual), nil
 }
 
-func GetSampleRate(bladeRF BladeRF, channel Channel) (uint, error) {
+func (bladeRF *BladeRF) GetSampleRate(channel Channel) (uint, error) {
 	var sampleRate C.uint
 	err := GetError(C.bladerf_get_sample_rate(bladeRF.ref, C.bladerf_channel(channel), &sampleRate))
 
@@ -392,7 +415,7 @@ func GetSampleRate(bladeRF BladeRF, channel Channel) (uint, error) {
 	return uint(sampleRate), nil
 }
 
-func GetRationalSampleRate(bladeRF BladeRF, channel Channel) (RationalRate, error) {
+func (bladeRF *BladeRF) GetRationalSampleRate(channel Channel) (RationalRate, error) {
 	var rate C.struct_bladerf_rational_rate
 	err := GetError(C.bladerf_get_rational_sample_rate(bladeRF.ref, C.bladerf_channel(channel), &rate))
 
@@ -403,7 +426,7 @@ func GetRationalSampleRate(bladeRF BladeRF, channel Channel) (RationalRate, erro
 	return NewRationalRate(&rate), nil
 }
 
-func GetSampleRateRange(bladeRF BladeRF, channel Channel) (Range, error) {
+func (bladeRF *BladeRF) GetSampleRateRange(channel Channel) (Range, error) {
 	var _range *C.struct_bladerf_range
 	err := GetError(C.bladerf_get_sample_rate_range(bladeRF.ref, C.bladerf_channel(channel), &_range))
 
@@ -414,7 +437,7 @@ func GetSampleRateRange(bladeRF BladeRF, channel Channel) (Range, error) {
 	return NewRange(_range), nil
 }
 
-func GetFrequencyRange(bladeRF BladeRF, channel Channel) (Range, error) {
+func (bladeRF *BladeRF) GetFrequencyRange(channel Channel) (Range, error) {
 	var _range *C.struct_bladerf_range
 	err := GetError(C.bladerf_get_frequency_range(bladeRF.ref, C.bladerf_channel(channel), &_range))
 
@@ -425,9 +448,14 @@ func GetFrequencyRange(bladeRF BladeRF, channel Channel) (Range, error) {
 	return NewRange(_range), nil
 }
 
-func SetBandwidth(bladeRF BladeRF, channel Channel, bandwidth uint) (uint, error) {
+func (bladeRF *BladeRF) SetBandwidth(channel Channel, bandwidth uint) (uint, error) {
 	var actual C.bladerf_bandwidth
-	err := GetError(C.bladerf_set_bandwidth(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_bandwidth(bandwidth), &actual))
+	err := GetError(C.bladerf_set_bandwidth(
+		bladeRF.ref,
+		C.bladerf_channel(channel),
+		C.bladerf_bandwidth(bandwidth),
+		&actual),
+	)
 
 	if err != nil {
 		return 0, err
@@ -436,7 +464,7 @@ func SetBandwidth(bladeRF BladeRF, channel Channel, bandwidth uint) (uint, error
 	return uint(actual), nil
 }
 
-func GetBandwidth(bladeRF BladeRF, channel Channel) (uint, error) {
+func (bladeRF *BladeRF) GetBandwidth(channel Channel) (uint, error) {
 	var bandwidth C.bladerf_bandwidth
 	err := GetError(C.bladerf_get_bandwidth(bladeRF.ref, C.bladerf_channel(channel), &bandwidth))
 
@@ -447,7 +475,7 @@ func GetBandwidth(bladeRF BladeRF, channel Channel) (uint, error) {
 	return uint(bandwidth), nil
 }
 
-func GetBandwidthRange(bladeRF BladeRF, channel Channel) (Range, error) {
+func (bladeRF *BladeRF) GetBandwidthRange(channel Channel) (Range, error) {
 	var bfRange *C.struct_bladerf_range
 	err := GetError(C.bladerf_get_bandwidth_range(bladeRF.ref, C.bladerf_channel(channel), &bfRange))
 
@@ -458,11 +486,11 @@ func GetBandwidthRange(bladeRF BladeRF, channel Channel) (Range, error) {
 	return NewRange(bfRange), nil
 }
 
-func SetGain(bladeRF BladeRF, channel Channel, gain int) error {
+func (bladeRF *BladeRF) SetGain(channel Channel, gain int) error {
 	return GetError(C.bladerf_set_gain(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_gain(gain)))
 }
 
-func GetGain(bladeRF BladeRF, channel Channel) (int, error) {
+func (bladeRF *BladeRF) GetGain(channel Channel) (int, error) {
 	var gain C.bladerf_gain
 	err := GetError(C.bladerf_get_gain(bladeRF.ref, C.bladerf_channel(channel), &gain))
 
@@ -473,7 +501,7 @@ func GetGain(bladeRF BladeRF, channel Channel) (int, error) {
 	return int(gain), nil
 }
 
-func GetGainStage(bladeRF BladeRF, channel Channel, stage string) (int, error) {
+func (bladeRF *BladeRF) GetGainStage(channel Channel, stage string) (int, error) {
 	val := C.CString(stage)
 	defer C.free(unsafe.Pointer(val))
 
@@ -487,7 +515,7 @@ func GetGainStage(bladeRF BladeRF, channel Channel, stage string) (int, error) {
 	return int(gain), nil
 }
 
-func GetGainMode(bladeRF BladeRF, channel Channel) (GainMode, error) {
+func (bladeRF *BladeRF) GetGainMode(channel Channel) (GainMode, error) {
 	var mode C.bladerf_gain_mode
 
 	err := GetError(C.bladerf_get_gain_mode(bladeRF.ref, C.bladerf_channel(channel), &mode))
@@ -499,14 +527,14 @@ func GetGainMode(bladeRF BladeRF, channel Channel) (GainMode, error) {
 	return GainMode(mode), nil
 }
 
-func SetGainStage(bladeRF BladeRF, channel Channel, stage string, gain int) error {
+func (bladeRF *BladeRF) SetGainStage(channel Channel, stage string, gain int) error {
 	val := C.CString(stage)
 	defer C.free(unsafe.Pointer(val))
 
 	return GetError(C.bladerf_set_gain_stage(bladeRF.ref, C.bladerf_channel(channel), val, C.bladerf_gain(gain)))
 }
 
-func GetGainStageRange(bladeRF BladeRF, channel Channel, stage string) (Range, error) {
+func (bladeRF *BladeRF) GetGainStageRange(channel Channel, stage string) (Range, error) {
 	val := C.CString(stage)
 	defer C.free(unsafe.Pointer(val))
 
@@ -520,7 +548,7 @@ func GetGainStageRange(bladeRF BladeRF, channel Channel, stage string) (Range, e
 	return NewRange(_range), nil
 }
 
-func GetGainRange(bladeRF BladeRF, channel Channel) (Range, error) {
+func (bladeRF *BladeRF) GetGainRange(channel Channel) (Range, error) {
 	var _range *C.struct_bladerf_range
 	err := GetError(C.bladerf_get_gain_range(bladeRF.ref, C.bladerf_channel(channel), &_range))
 
@@ -531,7 +559,7 @@ func GetGainRange(bladeRF BladeRF, channel Channel) (Range, error) {
 	return NewRange(_range), nil
 }
 
-func GetNumberOfGainStages(bladeRF BladeRF, channel Channel) (int, error) {
+func (bladeRF *BladeRF) GetNumberOfGainStages(channel Channel) (int, error) {
 	countOrCode := C.bladerf_get_gain_stages(bladeRF.ref, C.bladerf_channel(channel), nil, 0)
 
 	if countOrCode < 0 {
@@ -541,13 +569,23 @@ func GetNumberOfGainStages(bladeRF BladeRF, channel Channel) (int, error) {
 	return int(countOrCode), nil
 }
 
-func SetCorrection(bladeRF BladeRF, channel Channel, correction Correction, correctionValue int16) error {
-	return GetError(C.bladerf_set_correction(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_correction(correction), C.bladerf_correction_value(correctionValue)))
+func (bladeRF *BladeRF) SetCorrection(channel Channel, correction Correction, correctionValue int16) error {
+	return GetError(C.bladerf_set_correction(
+		bladeRF.ref,
+		C.bladerf_channel(channel),
+		C.bladerf_correction(correction),
+		C.bladerf_correction_value(correctionValue)),
+	)
 }
 
-func GetCorrection(bladeRF BladeRF, channel Channel, correction Correction) (uint16, error) {
+func (bladeRF *BladeRF) GetCorrection(channel Channel, correction Correction) (uint16, error) {
 	var correctionValue C.int16_t
-	err := GetError(C.bladerf_get_correction(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_correction(correction), &correctionValue))
+	err := GetError(C.bladerf_get_correction(
+		bladeRF.ref,
+		C.bladerf_channel(channel),
+		C.bladerf_correction(correction),
+		&correctionValue),
+	)
 
 	if err != nil {
 		return 0, err
@@ -556,11 +594,11 @@ func GetCorrection(bladeRF BladeRF, channel Channel, correction Correction) (uin
 	return uint16(correctionValue), nil
 }
 
-func BackendString(backend Backend) string {
-	return C.GoString(C.bladerf_backend_str(C.bladerf_backend(backend)))
+func (backend *Backend) String() string {
+	return C.GoString(C.bladerf_backend_str(C.bladerf_backend(*backend)))
 }
 
-func GetBoardName(bladeRF BladeRF) string {
+func (bladeRF *BladeRF) GetBoardName() string {
 	return C.GoString(C.bladerf_get_board_name(bladeRF.ref))
 }
 
@@ -568,7 +606,7 @@ func SetUSBResetOnOpen(enabled bool) {
 	C.bladerf_set_usb_reset_on_open(C.bool(enabled))
 }
 
-func GetSerial(bladeRF BladeRF) (string, error) {
+func (bladeRF *BladeRF) GetSerial() (string, error) {
 	var serial C.char
 	err := GetError(C.bladerf_get_serial(bladeRF.ref, &serial))
 
@@ -579,7 +617,7 @@ func GetSerial(bladeRF BladeRF) (string, error) {
 	return C.GoString(&serial), nil
 }
 
-func GetSerialStruct(bladeRF BladeRF) (Serial, error) {
+func (bladeRF *BladeRF) GetSerialStruct() (Serial, error) {
 	var serial C.struct_bladerf_serial
 	err := GetError(C.bladerf_get_serial_struct(bladeRF.ref, &serial))
 
@@ -590,11 +628,11 @@ func GetSerialStruct(bladeRF BladeRF) (Serial, error) {
 	return NewSerial(&serial), nil
 }
 
-func GetGainStages(bladeRF BladeRF, channel Channel) ([]string, error) {
+func (bladeRF *BladeRF) GetGainStages(channel Channel) ([]string, error) {
 	var stage *C.char
 	var stages []string
 
-	numberOfGainStages, err := GetNumberOfGainStages(bladeRF, channel)
+	numberOfGainStages, err := bladeRF.GetNumberOfGainStages(channel)
 
 	if err != nil {
 		return nil, err
@@ -630,7 +668,7 @@ func GetGainStages(bladeRF BladeRF, channel Channel) ([]string, error) {
 	return stages, nil
 }
 
-func GetGainModes(bladeRF BladeRF, channel Channel) ([]GainModes, error) {
+func (bladeRF *BladeRF) GetGainModes(channel Channel) ([]GainModes, error) {
 	var gainMode *C.struct_bladerf_gain_modes
 	var gainModes []GainModes
 
@@ -659,7 +697,7 @@ func GetGainModes(bladeRF BladeRF, channel Channel) ([]GainModes, error) {
 	return gainModes, nil
 }
 
-func GetLoopbackModes(bladeRF BladeRF) ([]LoopbackModes, error) {
+func (bladeRF *BladeRF) GetLoopbackModes() ([]LoopbackModes, error) {
 	var loopbackMode *C.struct_bladerf_loopback_modes
 	var loopbackModes []LoopbackModes
 
@@ -680,7 +718,9 @@ func GetLoopbackModes(bladeRF BladeRF) ([]LoopbackModes, error) {
 
 		for i := 0; i < count; i++ {
 			loopbackModes = append(loopbackModes, NewLoopbackModes(
-				(*C.struct_bladerf_loopback_modes)(unsafe.Pointer(uintptr(unsafe.Pointer(loopbackMode))+(uintptr(i)*size))),
+				(*C.struct_bladerf_loopback_modes)(
+					unsafe.Pointer(uintptr(unsafe.Pointer(loopbackMode))+(uintptr(i)*size)),
+				),
 			))
 		}
 	}
@@ -688,21 +728,26 @@ func GetLoopbackModes(bladeRF BladeRF) ([]LoopbackModes, error) {
 	return loopbackModes, nil
 }
 
-func SetGainMode(bladeRF BladeRF, channel Channel, mode GainMode) error {
+func (bladeRF *BladeRF) SetGainMode(channel Channel, mode GainMode) error {
 	return GetError(C.bladerf_set_gain_mode(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_gain_mode(mode)))
 }
 
-func EnableModule(bladeRF BladeRF, channel Channel) error {
+func (bladeRF *BladeRF) EnableModule(channel Channel) error {
 	return GetError(C.bladerf_enable_module(bladeRF.ref, C.bladerf_channel(channel), true))
 }
 
-func DisableModule(bladeRF BladeRF, channel Channel) error {
+func (bladeRF *BladeRF) DisableModule(channel Channel) error {
 	return GetError(C.bladerf_enable_module(bladeRF.ref, C.bladerf_channel(channel), false))
 }
 
-func TriggerInit(bladeRF BladeRF, channel Channel, signal TriggerSignal) (Trigger, error) {
+func (bladeRF *BladeRF) TriggerInit(channel Channel, signal TriggerSignal) (Trigger, error) {
 	var trigger C.struct_bladerf_trigger
-	err := GetError(C.bladerf_trigger_init(bladeRF.ref, C.bladerf_channel(channel), C.bladerf_trigger_signal(signal), &trigger))
+	err := GetError(C.bladerf_trigger_init(
+		bladeRF.ref,
+		C.bladerf_channel(channel),
+		C.bladerf_trigger_signal(signal),
+		&trigger),
+	)
 
 	if err != nil {
 		return Trigger{}, err
@@ -711,22 +756,30 @@ func TriggerInit(bladeRF BladeRF, channel Channel, signal TriggerSignal) (Trigge
 	return Trigger{ref: &trigger}, nil
 }
 
-func TriggerArm(bladeRF BladeRF, trigger Trigger, arm bool, resV1 uint64, resV2 uint64) error {
+func (bladeRF *BladeRF) TriggerArm(trigger Trigger, arm bool, resV1 uint64, resV2 uint64) error {
 	return GetError(C.bladerf_trigger_arm(bladeRF.ref, trigger.ref, C.bool(arm), C.uint64_t(resV1), C.uint64_t(resV2)))
 }
 
-func TriggerFire(bladeRF BladeRF, trigger Trigger) error {
+func (bladeRF *BladeRF) TriggerFire(trigger Trigger) error {
 	return GetError(C.bladerf_trigger_fire(bladeRF.ref, trigger.ref))
 }
 
-func TriggerState(bladeRF BladeRF, trigger Trigger) (bool, bool, bool, uint64, uint64, error) {
+func (bladeRF *BladeRF) TriggerState(trigger Trigger) (bool, bool, bool, uint64, uint64, error) {
 	var isArmed C.bool
 	var hasFired C.bool
 	var fireRequested C.bool
 	var resV1 C.uint64_t
 	var resV2 C.uint64_t
 
-	err := GetError(C.bladerf_trigger_state(bladeRF.ref, trigger.ref, &isArmed, &hasFired, &fireRequested, &resV1, &resV2))
+	err := GetError(C.bladerf_trigger_state(
+		bladeRF.ref,
+		trigger.ref,
+		&isArmed,
+		&hasFired,
+		&fireRequested,
+		&resV1,
+		&resV2),
+	)
 
 	if err != nil {
 		return false, false, false, 0, 0, err
@@ -735,7 +788,11 @@ func TriggerState(bladeRF BladeRF, trigger Trigger) (bool, bool, bool, uint64, u
 	return bool(isArmed), bool(hasFired), bool(fireRequested), uint64(resV1), uint64(resV2), nil
 }
 
-func SyncRX(bladeRF BladeRF, bufferSize uintptr) ([]int16, error) {
+func (trigger *Trigger) SetRole(role TriggerRole) {
+	(*trigger.ref).role = C.bladerf_trigger_role(role)
+}
+
+func (bladeRF *BladeRF) SyncRX(bufferSize uintptr) ([]int16, error) {
 	var metadata C.struct_bladerf_metadata
 	start := C.malloc(C.size_t(C.sizeof_int16_t * bufferSize * 2 * 1))
 	err := GetError(C.bladerf_sync_rx(bladeRF.ref, start, C.uint(bufferSize), &metadata, 32))
@@ -754,9 +811,13 @@ func SyncRX(bladeRF BladeRF, bufferSize uintptr) ([]int16, error) {
 	return results, nil
 }
 
-func InitStream(bladeRF BladeRF,
+func (bladeRF *BladeRF) InitStream(
 	format Format,
-	numBuffers int, samplesPerBuffer int, numTransfers int, callback func(data []int16)) (Stream, error) {
+	numBuffers int,
+	samplesPerBuffer int,
+	numTransfers int,
+	callback func(data []int16),
+) (Stream, error) {
 	var buffers *unsafe.Pointer
 	var rxStream *C.struct_bladerf_stream
 
@@ -781,11 +842,11 @@ func InitStream(bladeRF BladeRF,
 	return stream, nil
 }
 
-func DeInitStream(stream Stream) {
+func (stream *Stream) DeInit() {
 	C.bladerf_deinit_stream(stream.ref)
 }
 
-func GetStreamTimeout(bladeRF BladeRF, direction Direction) (uint, error) {
+func (bladeRF *BladeRF) GetStreamTimeout(direction Direction) (uint, error) {
 	var timeout C.uint
 	err := GetError(C.bladerf_get_stream_timeout(bladeRF.ref, C.bladerf_direction(direction), &timeout))
 
@@ -796,23 +857,38 @@ func GetStreamTimeout(bladeRF BladeRF, direction Direction) (uint, error) {
 	return uint(timeout), err
 }
 
-func SetStreamTimeout(bladeRF BladeRF, direction Direction, timeout uint) error {
+func (bladeRF *BladeRF) SetStreamTimeout(direction Direction, timeout uint) error {
 	return GetError(C.bladerf_set_stream_timeout(bladeRF.ref, C.bladerf_direction(direction), C.uint(timeout)))
 }
 
-func SyncConfig(bladeRF BladeRF, layout ChannelLayout, format Format, numBuffers uint, bufferSize uint, numTransfers uint, timeout uint) error {
-	return GetError(C.bladerf_sync_config(bladeRF.ref, C.bladerf_channel_layout(layout), C.bladerf_format(format), C.uint(numBuffers), C.uint(bufferSize), C.uint(numTransfers), C.uint(timeout)))
+func (bladeRF *BladeRF) SyncConfig(
+	layout ChannelLayout,
+	format Format,
+	numBuffers uint,
+	bufferSize uint,
+	numTransfers uint,
+	timeout uint,
+) error {
+	return GetError(C.bladerf_sync_config(
+		bladeRF.ref,
+		C.bladerf_channel_layout(layout),
+		C.bladerf_format(format),
+		C.uint(numBuffers),
+		C.uint(bufferSize),
+		C.uint(numTransfers),
+		C.uint(timeout)),
+	)
 }
 
-func StartStream(stream Stream, layout ChannelLayout) error {
+func (stream *Stream) Start(layout ChannelLayout) error {
 	return GetError(C.bladerf_stream(stream.ref, C.bladerf_channel_layout(layout)))
 }
 
-func AttachExpansionBoard(bladeRF BladeRF, expansionBoard ExpansionBoard) error {
+func (bladeRF *BladeRF) AttachExpansionBoard(expansionBoard ExpansionBoard) error {
 	return GetError(C.bladerf_expansion_attach(bladeRF.ref, C.bladerf_xb(expansionBoard)))
 }
 
-func GetAttachedExpansionBoard(bladeRF BladeRF) (ExpansionBoard, error) {
+func (bladeRF *BladeRF) GetAttachedExpansionBoard() (ExpansionBoard, error) {
 	var expansionBoard C.bladerf_xb
 	err := GetError(C.bladerf_expansion_get_attached(bladeRF.ref, &expansionBoard))
 
@@ -821,4 +897,45 @@ func GetAttachedExpansionBoard(bladeRF BladeRF) (ExpansionBoard, error) {
 	}
 
 	return ExpansionBoard(expansionBoard), nil
+}
+
+func (bladeRF *BladeRF) SetGetVctcxoTamerMode(mode VctcxoTamerMode) error {
+	return GetError(C.bladerf_set_vctcxo_tamer_mode(bladeRF.ref, C.bladerf_vctcxo_tamer_mode(mode)))
+}
+
+func (bladeRF *BladeRF) GetVctcxoTamerMode() (VctcxoTamerMode, error) {
+	var mode C.bladerf_vctcxo_tamer_mode
+	err := GetError(C.bladerf_get_vctcxo_tamer_mode(bladeRF.ref, &mode))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return VctcxoTamerMode(mode), nil
+}
+
+func (bladeRF *BladeRF) GetVctcxoTrim() (uint16, error) {
+	var trim C.uint16_t
+	err := GetError(C.bladerf_get_vctcxo_trim(bladeRF.ref, &trim))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return uint16(trim), nil
+}
+
+func (bladeRF *BladeRF) TrimDacRead() (uint16, error) {
+	var val C.uint16_t
+	err := GetError(C.bladerf_trim_dac_read(bladeRF.ref, &val))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return uint16(val), nil
+}
+
+func (bladeRF *BladeRF) TrimDacWrite(val uint16) error {
+	return GetError(C.bladerf_trim_dac_write(bladeRF.ref, C.uint16_t(val)))
 }
