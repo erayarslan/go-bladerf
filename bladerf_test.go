@@ -393,6 +393,30 @@ func TestReadFlash(t *testing.T) {
 	rf.ReadFlash(1024, 10496)
 }
 
+func TestRfPort(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices, _ := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := devices[0].Open()
+	defer rf.Close()
+
+	channel := ChannelRx(0)
+
+	test, _ := rf.GetRfPort(channel)
+	fmt.Println(test)
+	rf.SetRfPort(channel, test)
+	count, _ := rf.GetNumberOfRfPorts(channel)
+	fmt.Println(count)
+	ports, _ := rf.GetRfPorts(channel)
+	fmt.Println(len(ports))
+}
+
 func TestReadOtp(t *testing.T) {
 	log.SetVerbosity(log.Debug)
 

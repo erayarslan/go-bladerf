@@ -629,9 +629,7 @@ func (bladeRF *BladeRF) GetSerialStruct() (Serial, error) {
 }
 
 func (bladeRF *BladeRF) GetGainStages(channel Channel) ([]string, error) {
-	var stage *C.char
-	var stages []string
-
+	var stagePtr *C.char
 	numberOfGainStages, err := bladeRF.GetNumberOfGainStages(channel)
 
 	if err != nil {
@@ -641,8 +639,8 @@ func (bladeRF *BladeRF) GetGainStages(channel Channel) ([]string, error) {
 	countOrCode := C.bladerf_get_gain_stages(
 		bladeRF.ref,
 		C.bladerf_channel(channel),
-		&stage,
-		C.ulong(numberOfGainStages),
+		&stagePtr,
+		C.size_t(numberOfGainStages),
 	)
 
 	if countOrCode < 0 {
@@ -654,14 +652,27 @@ func (bladeRF *BladeRF) GetGainStages(channel Channel) ([]string, error) {
 	}
 
 	count := int(countOrCode)
+	var stages []string
 
 	if count > 0 {
-		size := unsafe.Sizeof(*stage)
+		offset := uint32(0)
 
 		for i := 0; i < count; i++ {
-			stages = append(stages, C.GoString(
-				(*C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(stage))+(uintptr(i)*size))),
-			))
+			var stage []rune
+			finish := false
+
+			for !finish {
+				char := *(*C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(stagePtr)) + (C.sizeof_char * uintptr(offset))))
+
+				if char != 0 {
+					stage = append(stage, rune(char))
+				} else {
+					finish = true
+					stages = append(stages, string(stage))
+				}
+
+				offset++
+			}
 		}
 	}
 
@@ -1091,4 +1102,97 @@ func (bladeRF *BladeRF) WriteFlash(input []uint8, page uint32, count uint32) err
 	}
 
 	return GetError(C.bladerf_write_flash(bladeRF.ref, buf, C.uint32_t(page), C.uint32_t(count)))
+}
+
+func (bladeRF *BladeRF) SetRfPort(channel Channel, port string) error {
+	cPort := C.CString(port)
+	defer C.free(unsafe.Pointer(cPort))
+	return GetError(C.bladerf_set_rf_port(bladeRF.ref, C.bladerf_channel(channel), cPort))
+}
+
+func (bladeRF *BladeRF) GetRfPort(channel Channel) (string, error) {
+	var portPtr *C.char
+	err := GetError(C.bladerf_get_rf_port(bladeRF.ref, C.bladerf_channel(channel), &portPtr))
+
+	if err != nil {
+		return "", err
+	}
+
+	i := uint32(0)
+	var port []rune
+
+	for true {
+		char := *(*C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(portPtr)) + (C.sizeof_char * uintptr(i))))
+
+		if char != 0 {
+			port = append(port, rune(char))
+		} else {
+			return string(port), nil
+		}
+
+		i++
+	}
+
+	return string(port), nil
+}
+
+func (bladeRF *BladeRF) GetNumberOfRfPorts(channel Channel) (int, error) {
+	countOrCode := C.bladerf_get_rf_ports(bladeRF.ref, C.bladerf_channel(channel), nil, 0)
+
+	if countOrCode < 0 {
+		return 0, GetError(countOrCode)
+	}
+
+	return int(countOrCode), nil
+}
+
+func (bladeRF *BladeRF) GetRfPorts(channel Channel) ([]string, error) {
+	var portPtr *C.char
+	numberOfRfPorts, err := bladeRF.GetNumberOfRfPorts(channel)
+
+	if err != nil {
+		return nil, err
+	}
+
+	countOrCode := C.bladerf_get_rf_ports(
+		bladeRF.ref,
+		C.bladerf_channel(channel),
+		&portPtr,
+		C.uint(numberOfRfPorts),
+	)
+
+	if countOrCode < 0 {
+		return nil, GetError(countOrCode)
+	}
+
+	if countOrCode == 0 {
+		return make([]string, 0), nil
+	}
+
+	count := int(countOrCode)
+	var ports []string
+
+	if count > 0 {
+		offset := uint32(0)
+
+		for i := 0; i < count; i++ {
+			var port []rune
+			finish := false
+
+			for !finish {
+				char := *(*C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(portPtr)) + (C.sizeof_char * uintptr(offset))))
+
+				if char != 0 {
+					port = append(port, rune(char))
+				} else {
+					finish = true
+					ports = append(ports, string(port))
+				}
+
+				offset++
+			}
+		}
+	}
+
+	return ports, nil
 }
