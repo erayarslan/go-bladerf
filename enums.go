@@ -25,7 +25,7 @@ type ExpansionBoard int
 type VctcxoTamerMode int
 type TuningMode int
 
-const FlashPageSize = 256
+const FlashPageSize = 256 // BLADERF_FLASH_PAGE_SIZE - Size of the SPI flash, in pages
 
 const (
 	BackendAny     Backend = C.BLADERF_BACKEND_ANY
