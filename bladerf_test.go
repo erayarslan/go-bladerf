@@ -247,7 +247,7 @@ func TestGetFirmwareVersion(t *testing.T) {
 		panic(err)
 	}
 
-	fmt.Print(version.describe)
+	fmt.Print(version.Describe)
 }
 
 func TestGetFpgaVersion(t *testing.T) {
@@ -264,7 +264,7 @@ func TestGetFpgaVersion(t *testing.T) {
 	defer rf.Close()
 
 	version, _ := rf.GetFpgaVersion()
-	fmt.Print(version.describe)
+	fmt.Print(version.Describe)
 }
 
 func TestGetLoopbackModes(t *testing.T) {
@@ -282,7 +282,7 @@ func TestGetLoopbackModes(t *testing.T) {
 
 	modes, _ := rf.GetLoopbackModes()
 	for _, v := range modes {
-		fmt.Printf("%s\n\n", v.name)
+		fmt.Printf("%s\n\n", v.Name)
 	}
 }
 
@@ -536,9 +536,9 @@ func TestBladeRF(t *testing.T) {
 	out.Close()
 	c1, _ := Open()
 	c1.Close()
-	c2, _ := OpenWithDeviceIdentifier("*:serial=" + info.serial)
+	c2, _ := OpenWithDeviceIdentifier("*:serial=" + info.Serial)
 	c2.Close()
-	o1, _ := GetDeviceInfoFromString("*:serial=" + info.serial)
+	o1, _ := GetDeviceInfoFromString("*:serial=" + info.Serial)
 	out2, _ := o1.Open()
 	out2.Close()
 
@@ -549,7 +549,7 @@ func TestBladeRF(t *testing.T) {
 	fmt.Println("---------")
 
 	g0, _ := rf.GetDeviceInfo()
-	result = g0.DeviceStringMatches("*:serial=" + info.serial)
+	result = g0.DeviceStringMatches("*:serial=" + info.Serial)
 	fmt.Println("---------")
 	fmt.Println(result)
 	fmt.Println("---------")
@@ -580,7 +580,7 @@ func TestSetGainStage(t *testing.T) {
 	stages, _ := rf.GetGainStages(ChannelRx(1))
 	fmt.Println(len(stages))
 	bfRange, _ := rf.GetGainStageRange(ChannelRx(1), stages[0])
-	_ = rf.SetGainStage(ChannelRx(1), stages[0], int(bfRange.max))
+	_ = rf.SetGainStage(ChannelRx(1), stages[0], int(bfRange.Max))
 	gain, _ := rf.GetGainStage(ChannelRx(1), stages[0])
 	fmt.Println(gain)
 }
@@ -616,7 +616,7 @@ func TestStream(t *testing.T) {
 
 	_ = rf.SetFrequency(channel, 96600000)
 	_range, _ := rf.GetSampleRateRange(channel)
-	fmt.Printf("Min: %d, Max: %d, Step: %d\n", _range.min, _range.max, _range.step)
+	fmt.Printf("Min: %d, Max: %d, Step: %d\n", _range.Min, _range.Max, _range.Step)
 	_, _ = rf.SetSampleRate(channel, 4e6)
 	_ = rf.SyncConfig(RxX2, FormatSc16Q11, 16, audioBufferSize, 8, 32)
 	actual, _ := rf.SetBandwidth(channel, 240000)
@@ -703,7 +703,7 @@ func TestGetGainRange(t *testing.T) {
 	defer rf.Close()
 
 	bfRange, _ := rf.GetGainRange(ChannelRx(1))
-	fmt.Println(bfRange.max)
+	fmt.Println(bfRange.Max)
 }
 
 func TestGPSData(t *testing.T) {

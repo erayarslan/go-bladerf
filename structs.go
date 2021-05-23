@@ -7,13 +7,13 @@ type Timestamp uint64
 
 type DeviceInfo struct {
 	ref          *C.struct_bladerf_devinfo
-	backend      Backend
-	serial       string
-	usbBus       int8
-	usbAddr      int8
-	instance     uint
-	manufacturer string
-	product      string
+	Backend      Backend
+	Serial       string
+	UsbBus       int8
+	UsbAddr      int8
+	Instance     uint
+	Manufacturer string
+	Product      string
 }
 
 func NewDeviceInfo(ref *C.struct_bladerf_devinfo) DeviceInfo {
@@ -41,57 +41,57 @@ func NewDeviceInfo(ref *C.struct_bladerf_devinfo) DeviceInfo {
 		}
 	}
 
-	deviceInfo.backend = Backend(deviceInfo.ref.backend)
-	deviceInfo.serial = string(serial)
-	deviceInfo.usbBus = int8(deviceInfo.ref.usb_bus)
-	deviceInfo.usbAddr = int8(deviceInfo.ref.usb_addr)
-	deviceInfo.instance = uint(deviceInfo.ref.instance)
-	deviceInfo.manufacturer = string(manufacturer)
-	deviceInfo.product = string(product)
+	deviceInfo.Backend = Backend(deviceInfo.ref.backend)
+	deviceInfo.Serial = string(serial)
+	deviceInfo.UsbBus = int8(deviceInfo.ref.usb_bus)
+	deviceInfo.UsbAddr = int8(deviceInfo.ref.usb_addr)
+	deviceInfo.Instance = uint(deviceInfo.ref.instance)
+	deviceInfo.Manufacturer = string(manufacturer)
+	deviceInfo.Product = string(product)
 
 	return deviceInfo
 }
 
 type Version struct {
 	ref      *C.struct_bladerf_version
-	major    uint16
-	minor    uint16
-	patch    uint16
-	describe string
+	Major    uint16
+	Minor    uint16
+	Patch    uint16
+	Describe string
 }
 
 func NewVersion(ref *C.struct_bladerf_version) Version {
 	version := Version{ref: ref}
 
-	version.major = uint16((*ref).major)
-	version.minor = uint16((*ref).minor)
-	version.patch = uint16((*ref).patch)
-	version.describe = C.GoString((*ref).describe)
+	version.Major = uint16((*ref).major)
+	version.Minor = uint16((*ref).minor)
+	version.Patch = uint16((*ref).patch)
+	version.Describe = C.GoString((*ref).describe)
 
 	return version
 }
 
 type RationalRate struct {
 	ref     *C.struct_bladerf_rational_rate
-	integer uint64
-	num     uint64
-	den     uint64
+	Integer uint64
+	Num     uint64
+	Den     uint64
 }
 
 func NewRationalRate(ref *C.struct_bladerf_rational_rate) RationalRate {
-	return RationalRate{ref: ref, integer: uint64((*ref).integer), num: uint64((*ref).num), den: uint64((*ref).den)}
+	return RationalRate{ref: ref, Integer: uint64((*ref).integer), Num: uint64((*ref).num), Den: uint64((*ref).den)}
 }
 
 type Range struct {
 	ref   *C.struct_bladerf_range
-	min   int64
-	max   int64
-	step  int64
-	scale float64
+	Min   int64
+	Max   int64
+	Step  int64
+	Scale float64
 }
 
 func NewRange(ref *C.struct_bladerf_range) Range {
-	return Range{ref: ref, min: int64((*ref).min), max: int64((*ref).max), step: int64((*ref).step), scale: float64((*ref).scale)}
+	return Range{ref: ref, Min: int64((*ref).min), Max: int64((*ref).max), Step: int64((*ref).step), Scale: float64((*ref).scale)}
 }
 
 type BladeRF struct {
@@ -104,7 +104,7 @@ type QuickTune struct {
 
 type Serial struct {
 	ref    *C.struct_bladerf_serial
-	serial string
+	Serial string
 }
 
 func NewSerial(ref *C.struct_bladerf_serial) Serial {
@@ -115,7 +115,7 @@ func NewSerial(ref *C.struct_bladerf_serial) Serial {
 		}
 	}
 
-	return Serial{ref: ref, serial: string(serial)}
+	return Serial{ref: ref, Serial: string(serial)}
 }
 
 type Stream struct {
@@ -128,30 +128,30 @@ type Trigger struct {
 
 type LoopbackModes struct {
 	ref  *C.struct_bladerf_loopback_modes
-	name string
-	mode Loopback
+	Name string
+	Mode Loopback
 }
 
 func NewLoopbackModes(ref *C.struct_bladerf_loopback_modes) LoopbackModes {
 	loopbackModes := LoopbackModes{ref: ref}
 
-	loopbackModes.name = C.GoString(loopbackModes.ref.name)
-	loopbackModes.mode = Loopback(loopbackModes.ref.mode)
+	loopbackModes.Name = C.GoString(loopbackModes.ref.name)
+	loopbackModes.Mode = Loopback(loopbackModes.ref.mode)
 
 	return loopbackModes
 }
 
 type GainModes struct {
 	ref  *C.struct_bladerf_gain_modes
-	name string
-	mode GainMode
+	Name string
+	Mode GainMode
 }
 
 func NewGainModes(ref *C.struct_bladerf_gain_modes) GainModes {
 	gainModes := GainModes{ref: ref}
 
-	gainModes.name = C.GoString(gainModes.ref.name)
-	gainModes.mode = GainMode(gainModes.ref.mode)
+	gainModes.Name = C.GoString(gainModes.ref.name)
+	gainModes.Mode = GainMode(gainModes.ref.mode)
 
 	return gainModes
 }

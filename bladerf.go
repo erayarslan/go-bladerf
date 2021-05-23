@@ -48,7 +48,7 @@ func GetVersion() Version {
 }
 
 func (version *Version) Print() {
-	fmt.Printf("v%d.%d.%d (\"%s\")", version.major, version.minor, version.patch, version.describe)
+	fmt.Printf("v%d.%d.%d (\"%s\")", version.Major, version.Minor, version.Patch, version.Describe)
 }
 
 func (bladeRF *BladeRF) LoadFpga(imagePath string) error {
@@ -386,9 +386,9 @@ func (bladeRF *BladeRF) GetRxMux() (RxMux, error) {
 func (bladeRF *BladeRF) SetRationalSampleRate(channel Channel, rationalRate RationalRate) (RationalRate, error) {
 	var actual C.struct_bladerf_rational_rate
 	rationalSampleRate := C.struct_bladerf_rational_rate{
-		num:     C.uint64_t(rationalRate.num),
-		integer: C.uint64_t(rationalRate.integer),
-		den:     C.uint64_t(rationalRate.den),
+		num:     C.uint64_t(rationalRate.Num),
+		integer: C.uint64_t(rationalRate.Integer),
+		den:     C.uint64_t(rationalRate.Den),
 	}
 	err := GetError(C.bladerf_set_rational_sample_rate(
 		bladeRF.ref,
