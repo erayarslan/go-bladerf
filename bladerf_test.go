@@ -347,6 +347,73 @@ func TestTriggerReg(t *testing.T) {
 	fmt.Println(TriggerRegLine)
 }
 
+func TestReadFlashBytes(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices, _ := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := devices[0].Open()
+	defer rf.Close()
+
+	buf := make([]uint8, 0x290000)
+	for index, _ := range buf {
+		buf[index] = 180
+	}
+
+	rf.EraseFlashBytes(0x00040000, 0x290000)
+	rf.WriteFlashBytes(buf, 0x00040000, 0x290000)
+	rf.ReadFlashBytes(0x00040000, 0x290000)
+}
+
+func TestReadFlash(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices, _ := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := devices[0].Open()
+	defer rf.Close()
+
+	buf := make([]uint8, 0x290000)
+	for index, _ := range buf {
+		buf[index] = 180
+	}
+
+	rf.EraseFlash(4, 41)
+	rf.WriteFlash(buf, 1024, 10496)
+	rf.ReadFlash(1024, 10496)
+}
+
+func TestReadOtp(t *testing.T) {
+	log.SetVerbosity(log.Debug)
+
+	devices, _ := GetDeviceList()
+
+	if len(devices) == 0 {
+		fmt.Println("NO DEVICE")
+		return
+	}
+
+	rf, _ := devices[0].Open()
+	defer rf.Close()
+
+	buf := make([]uint8, 0x290000)
+	for index, _ := range buf {
+		buf[index] = 180
+	}
+
+	rf.ReadOtp()
+}
+
 func TestTrigger(t *testing.T) {
 	log.SetVerbosity(log.Debug)
 

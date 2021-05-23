@@ -999,35 +999,96 @@ func (bladeRF *BladeRF) LockOtp() error {
 	return GetError(C.bladerf_lock_otp(bladeRF.ref))
 }
 
-// ReadFlash ToDo: Test It
-func (bladeRF *BladeRF) ReadFlash(page uint32, count uint32) error {
-	buf := C.malloc(C.size_t(C.sizeof_uint8_t * count))
-	return GetError(C.bladerf_read_flash(bladeRF.ref, (*C.uint8_t)(buf), C.uint32_t(page), C.uint32_t(count)))
+func (bladeRF *BladeRF) ReadFlashBytes(address uint32, bytes uint32) ([]uint8, error) {
+	buf := (*C.uint8_t)(C.malloc((C.size_t)(bytes)))
+	defer C.free(unsafe.Pointer(buf))
+	err := GetError(C.bladerf_read_flash_bytes(bladeRF.ref, buf, C.uint32_t(address), C.uint32_t(bytes)))
+
+	if err != nil {
+		return nil, err
+	}
+
+	var output []uint8
+
+	for i := uint32(0); i < bytes/C.sizeof_uint8_t; i++ {
+		output = append(output, uint8(*(*C.uint8_t)(unsafe.Pointer(uintptr(unsafe.Pointer(buf)) + (C.sizeof_uint8_t * uintptr(i))))))
+	}
+
+	return output, nil
 }
 
-// ReadFlashBytes Todo: Test It
-func (bladeRF *BladeRF) ReadFlashBytes(address uint32, bytes uint32) error {
-	buf := C.malloc(C.ulong(bytes))
-	return GetError(C.bladerf_read_flash_bytes(bladeRF.ref, (*C.uint8_t)(buf), C.uint32_t(address), C.uint32_t(bytes)))
+func (bladeRF *BladeRF) WriteFlashBytes(input []uint8, address uint32, bytes uint32) error {
+	buf := (*C.uint8_t)(C.malloc((C.size_t)(C.sizeof_uint8_t * uintptr(len(input)))))
+	defer C.free(unsafe.Pointer(buf))
+
+	for i := uint32(0); i < bytes/C.sizeof_uint8_t; i++ {
+		addr := (*C.uint8_t)(unsafe.Pointer(uintptr(unsafe.Pointer(buf)) + (C.sizeof_uint8_t * uintptr(i))))
+		*addr = (C.uint8_t)(input[i])
+	}
+
+	return GetError(C.bladerf_write_flash_bytes(bladeRF.ref, buf, C.uint32_t(address), C.uint32_t(bytes)))
 }
 
-// ReadOtp Todo: Test It
-func (bladeRF *BladeRF) ReadOtp() error {
-	buf := C.malloc(256)
-	return GetError(C.bladerf_read_otp(bladeRF.ref, (*C.uint8_t)(buf)))
+func (bladeRF *BladeRF) ReadOtp() ([]uint8, error) {
+	bytes := uint32(256)
+	buf := (*C.uint8_t)(C.malloc((C.size_t)(bytes)))
+	defer C.free(unsafe.Pointer(buf))
+	err := GetError(C.bladerf_read_otp(bladeRF.ref, buf))
+
+	if err != nil {
+		return nil, err
+	}
+
+	var output []uint8
+
+	for i := uint32(0); i < bytes/C.sizeof_uint8_t; i++ {
+		output = append(output, uint8(*(*C.uint8_t)(unsafe.Pointer(uintptr(unsafe.Pointer(buf)) + (C.sizeof_uint8_t * uintptr(i))))))
+	}
+
+	return output, nil
 }
 
-// WriteFlash Todo: Test It
-func (bladeRF *BladeRF) WriteFlash(buf []uint8, page uint32, count uint32) error {
-	return GetError(C.bladerf_write_flash(bladeRF.ref, (*C.uint8_t)(unsafe.Pointer(&buf[0])), C.uint32_t(page), C.uint32_t(count)))
+func (bladeRF *BladeRF) WriteOtp(input []uint8) error {
+	bytes := uint32(256)
+	buf := (*C.uint8_t)(C.malloc((C.size_t)(C.sizeof_uint8_t * uintptr(len(input)))))
+	defer C.free(unsafe.Pointer(buf))
+
+	for i := uint32(0); i < bytes/C.sizeof_uint8_t; i++ {
+		addr := (*C.uint8_t)(unsafe.Pointer(uintptr(unsafe.Pointer(buf)) + (C.sizeof_uint8_t * uintptr(i))))
+		*addr = (C.uint8_t)(input[i])
+	}
+
+	return GetError(C.bladerf_write_otp(bladeRF.ref, buf))
 }
 
-// WriteFlashBytes Todo: Test It
-func (bladeRF *BladeRF) WriteFlashBytes(buf []uint8, address uint32, bytes uint32) error {
-	return GetError(C.bladerf_write_flash_bytes(bladeRF.ref, (*C.uint8_t)(unsafe.Pointer(&buf[0])), C.uint32_t(address), C.uint32_t(bytes)))
+func (bladeRF *BladeRF) ReadFlash(page uint32, count uint32) ([]uint8, error) {
+	bytes := uint32(C.sizeof_uint8_t * count * FlashPageSize)
+	buf := (*C.uint8_t)(C.malloc((C.size_t)(bytes)))
+	defer C.free(unsafe.Pointer(buf))
+	err := GetError(C.bladerf_read_flash(bladeRF.ref, buf, C.uint32_t(page), C.uint32_t(count)))
+
+	if err != nil {
+		return nil, err
+	}
+
+	var output []uint8
+
+	for i := uint32(0); i < bytes/C.sizeof_uint8_t; i++ {
+		output = append(output, uint8(*(*C.uint8_t)(unsafe.Pointer(uintptr(unsafe.Pointer(buf)) + (C.sizeof_uint8_t * uintptr(i))))))
+	}
+
+	return output, nil
 }
 
-// WriteOtp Todo: Test It
-func (bladeRF *BladeRF) WriteOtp(buf []uint8) error {
-	return GetError(C.bladerf_write_otp(bladeRF.ref, (*C.uint8_t)(unsafe.Pointer(&buf[0]))))
+func (bladeRF *BladeRF) WriteFlash(input []uint8, page uint32, count uint32) error {
+	bytes := uint32(C.sizeof_uint8_t * count * FlashPageSize)
+	buf := (*C.uint8_t)(C.malloc((C.size_t)(C.sizeof_uint8_t * uintptr(len(input)))))
+	defer C.free(unsafe.Pointer(buf))
+
+	for i := uint32(0); i < bytes/C.sizeof_uint8_t; i++ {
+		addr := (*C.uint8_t)(unsafe.Pointer(uintptr(unsafe.Pointer(buf)) + (C.sizeof_uint8_t * uintptr(i))))
+		*addr = (C.uint8_t)(input[i])
+	}
+
+	return GetError(C.bladerf_write_flash(bladeRF.ref, buf, C.uint32_t(page), C.uint32_t(count)))
 }

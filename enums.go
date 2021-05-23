@@ -25,6 +25,8 @@ type ExpansionBoard int
 type VctcxoTamerMode int
 type TuningMode int
 
+const FlashPageSize = 256
+
 const (
 	BackendAny     Backend = C.BLADERF_BACKEND_ANY
 	BackendLinux   Backend = C.BLADERF_BACKEND_LINUX
