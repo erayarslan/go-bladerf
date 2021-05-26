@@ -37,8 +37,20 @@ func StreamCallback(
 		)
 	}
 
-	userData.callback(userData.results)
-	return samples
+	defer C.free(samples)
+	status := userData.callback(userData.results)
+
+	if status == GoStreamNoData {
+		return StreamNoData
+	} else if status == GoStreamShutdown {
+		return StreamShutdown
+	} else {
+		return unsafe.Pointer(
+			(*C.uint16_t)(
+				C.malloc((C.size_t)(C.sizeof_uint16_t * uintptr(numSamples) * 2 * 1)),
+			),
+		)
+	}
 }
 
 func GetVersion() Version {
@@ -182,8 +194,6 @@ func GetDeviceList() ([]DeviceInfo, error) {
 				(*C.struct_bladerf_devinfo)(unsafe.Pointer(uintptr(unsafe.Pointer(deviceInfo))+(uintptr(i)*size))),
 			))
 		}
-
-		devices[0].FreeDeviceList()
 	}
 
 	return devices, nil
@@ -213,8 +223,6 @@ func GetBootloaderList() ([]DeviceInfo, error) {
 				(*C.struct_bladerf_devinfo)(unsafe.Pointer(uintptr(unsafe.Pointer(deviceInfo))+(uintptr(i)*size))),
 			))
 		}
-
-		devices[0].FreeDeviceList()
 	}
 
 	return devices, nil
@@ -578,7 +586,7 @@ func (bladeRF *BladeRF) SetCorrection(channel Channel, correction Correction, co
 	)
 }
 
-func (bladeRF *BladeRF) GetCorrection(channel Channel, correction Correction) (uint16, error) {
+func (bladeRF *BladeRF) GetCorrection(channel Channel, correction Correction) (int16, error) {
 	var correctionValue C.int16_t
 	err := GetError(C.bladerf_get_correction(
 		bladeRF.ref,
@@ -591,7 +599,7 @@ func (bladeRF *BladeRF) GetCorrection(channel Channel, correction Correction) (u
 		return 0, err
 	}
 
-	return uint16(correctionValue), nil
+	return int16(correctionValue), nil
 }
 
 func (backend *Backend) String() string {
@@ -803,23 +811,52 @@ func (trigger *Trigger) SetRole(role TriggerRole) {
 	(*trigger.ref).role = C.bladerf_trigger_role(role)
 }
 
-func (bladeRF *BladeRF) SyncRX(bufferSize uintptr) ([]int16, error) {
-	var metadata C.struct_bladerf_metadata
-	start := C.malloc(C.size_t(C.sizeof_int16_t * bufferSize * 2 * 1))
-	err := GetError(C.bladerf_sync_rx(bladeRF.ref, start, C.uint(bufferSize), &metadata, 32))
+func (bladeRF *BladeRF) SyncTX(input []int16, metadata Metadata) (Metadata, error) {
+	if metadata.ref == nil {
+		var ref C.struct_bladerf_metadata
+		metadata.ref = &ref
+	}
+
+	numberOfSample := len(input)
+	buf := (*C.uint16_t)(C.malloc((C.size_t)(C.sizeof_uint16_t * uintptr(numberOfSample))))
+	defer C.free(unsafe.Pointer(buf))
+
+	for i := 0; i < numberOfSample; i++ {
+		addr := (*C.uint16_t)(unsafe.Pointer(uintptr(unsafe.Pointer(buf)) + (C.sizeof_uint16_t * uintptr(i))))
+		*addr = (C.uint16_t)(input[i])
+	}
+
+	err := GetError(C.bladerf_sync_tx(bladeRF.ref, unsafe.Pointer(buf), C.uint(numberOfSample/2), metadata.ref, 5000))
 
 	if err != nil {
-		return nil, err
+		return metadata, err
+	}
+
+	return LoadMetadata(metadata.ref), nil
+}
+
+func (bladeRF *BladeRF) SyncRX(bufferSize uintptr, metadata Metadata) ([]int16, Metadata, error) {
+	if metadata.ref == nil {
+		var ref C.struct_bladerf_metadata
+		metadata.ref = &ref
+	}
+
+	start := C.malloc(C.size_t(C.sizeof_int16_t * bufferSize * 2 * 1))
+	defer C.free(unsafe.Pointer(start))
+	err := GetError(C.bladerf_sync_rx(bladeRF.ref, start, C.uint(bufferSize), metadata.ref, 5000))
+
+	if err != nil {
+		return nil, metadata, err
 	}
 
 	var results []int16
 
-	for i := 0; i < (int(metadata.actual_count)); i++ {
+	for i := 0; i < (int(metadata.ref.actual_count)); i++ {
 		n := (*C.int16_t)(unsafe.Pointer(uintptr(start) + (C.sizeof_int16_t * uintptr(i))))
 		results = append(results, int16(*n))
 	}
 
-	return results, nil
+	return results, LoadMetadata(metadata.ref), nil
 }
 
 func (bladeRF *BladeRF) InitStream(
@@ -827,7 +864,7 @@ func (bladeRF *BladeRF) InitStream(
 	numBuffers int,
 	samplesPerBuffer int,
 	numTransfers int,
-	callback func(data []int16),
+	callback func(data []int16) GoStream,
 ) (Stream, error) {
 	var buffers *unsafe.Pointer
 	var rxStream *C.struct_bladerf_stream
@@ -910,7 +947,7 @@ func (bladeRF *BladeRF) GetAttachedExpansionBoard() (ExpansionBoard, error) {
 	return ExpansionBoard(expansionBoard), nil
 }
 
-func (bladeRF *BladeRF) SetGetVctcxoTamerMode(mode VctcxoTamerMode) error {
+func (bladeRF *BladeRF) SetVctcxoTamerMode(mode VctcxoTamerMode) error {
 	return GetError(C.bladerf_set_vctcxo_tamer_mode(bladeRF.ref, C.bladerf_vctcxo_tamer_mode(mode)))
 }
 
@@ -964,6 +1001,17 @@ func (bladeRF *BladeRF) GetTuningMode() (TuningMode, error) {
 	}
 
 	return TuningMode(mode), nil
+}
+
+func (bladeRF *BladeRF) GetTimestamp(direction Direction) (Timestamp, error) {
+	var timestamp C.bladerf_timestamp
+	err := GetError(C.bladerf_get_timestamp(bladeRF.ref, C.bladerf_direction(direction), &timestamp))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return Timestamp(timestamp), err
 }
 
 func (bladeRF *BladeRF) ReadTrigger(channel Channel, signal TriggerSignal) (uint8, error) {

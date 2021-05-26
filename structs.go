@@ -156,12 +156,40 @@ func NewGainModes(ref *C.struct_bladerf_gain_modes) GainModes {
 	return gainModes
 }
 
+type Metadata struct {
+	ref         *C.struct_bladerf_metadata
+	Timestamp   Timestamp
+	Flags       uint32
+	Status      uint32
+	ActualCount uint
+}
+
+func LoadMetadata(ref *C.struct_bladerf_metadata) Metadata {
+	metadata := Metadata{ref: ref}
+
+	metadata.Timestamp = Timestamp(metadata.ref.timestamp)
+	metadata.Flags = uint32(metadata.ref.flags)
+	metadata.Status = uint32(metadata.ref.status)
+	metadata.ActualCount = uint(metadata.ref.actual_count)
+
+	return metadata
+}
+
+func NewMetadata(timestamp Timestamp, flags uint32) Metadata {
+	ref := C.struct_bladerf_metadata{
+		timestamp: C.uint64_t(timestamp),
+		flags:     C.uint32_t(flags),
+	}
+
+	return LoadMetadata(&ref)
+}
+
 type UserData struct {
-	callback   func(data []int16)
+	callback   func(data []int16) GoStream
 	results    []int16
 	bufferSize int
 }
 
-func NewUserData(callback func(data []int16), bufferSize int) UserData {
+func NewUserData(callback func(data []int16) GoStream, bufferSize int) UserData {
 	return UserData{callback: callback, results: make([]int16, bufferSize), bufferSize: bufferSize}
 }

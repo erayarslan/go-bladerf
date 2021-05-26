@@ -24,8 +24,15 @@ type TriggerSignal int
 type ExpansionBoard int
 type VctcxoTamerMode int
 type TuningMode int
+type GoStream int
 
 const FlashPageSize = 256 // BLADERF_FLASH_PAGE_SIZE - Size of the SPI flash, in pages
+
+const (
+	GoStreamNext     GoStream = 0
+	GoStreamNoData   GoStream = 1
+	GoStreamShutdown GoStream = 2
+)
 
 const (
 	BackendAny     Backend = C.BLADERF_BACKEND_ANY
