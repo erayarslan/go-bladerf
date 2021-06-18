@@ -1,11 +1,9 @@
-# Go-BladeRF
+# go-bladerf
 
-`under development "draft"`
-
-## Examples
+## examples
 
 [go-bladerf-examples](https://github.com/erayarslan/go-bladerf-examples)
 
-## Tested On
+## tested on
 
 `libbladeRF 2.2.1-MacPorts-20191220-45521019`

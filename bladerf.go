@@ -811,7 +811,7 @@ func (trigger *Trigger) SetRole(role TriggerRole) {
 	(*trigger.ref).role = C.bladerf_trigger_role(role)
 }
 
-func (bladeRF *BladeRF) SyncTX(input []int16, metadata Metadata) (Metadata, error) {
+func (bladeRF *BladeRF) SyncTX(input []int16, metadata Metadata, timeout uint) (Metadata, error) {
 	if metadata.ref == nil {
 		var ref C.struct_bladerf_metadata
 		metadata.ref = &ref
@@ -826,7 +826,7 @@ func (bladeRF *BladeRF) SyncTX(input []int16, metadata Metadata) (Metadata, erro
 		*addr = (C.uint16_t)(input[i])
 	}
 
-	err := GetError(C.bladerf_sync_tx(bladeRF.ref, unsafe.Pointer(buf), C.uint(numberOfSample/2), metadata.ref, 5000))
+	err := GetError(C.bladerf_sync_tx(bladeRF.ref, unsafe.Pointer(buf), C.uint(numberOfSample/2), metadata.ref, C.uint(timeout)))
 
 	if err != nil {
 		return metadata, err
@@ -835,7 +835,7 @@ func (bladeRF *BladeRF) SyncTX(input []int16, metadata Metadata) (Metadata, erro
 	return LoadMetadata(metadata.ref), nil
 }
 
-func (bladeRF *BladeRF) SyncRX(bufferSize uintptr, metadata Metadata) ([]int16, Metadata, error) {
+func (bladeRF *BladeRF) SyncRX(bufferSize uintptr, metadata Metadata, timeout uint) ([]int16, Metadata, error) {
 	if metadata.ref == nil {
 		var ref C.struct_bladerf_metadata
 		metadata.ref = &ref
@@ -843,7 +843,7 @@ func (bladeRF *BladeRF) SyncRX(bufferSize uintptr, metadata Metadata) ([]int16, 
 
 	start := C.malloc(C.size_t(C.sizeof_int16_t * bufferSize * 2 * 1))
 	defer C.free(unsafe.Pointer(start))
-	err := GetError(C.bladerf_sync_rx(bladeRF.ref, start, C.uint(bufferSize), metadata.ref, 5000))
+	err := GetError(C.bladerf_sync_rx(bladeRF.ref, start, C.uint(bufferSize), metadata.ref, C.uint(timeout)))
 
 	if err != nil {
 		return nil, metadata, err

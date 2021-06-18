@@ -1219,7 +1219,7 @@ func TestSyncTX(t *testing.T) {
 		data[i] = complex(0.5, 0.5)
 	}
 
-	_, err = rf.SyncTX(Complex64ToInt16(data), Metadata{})
+	_, err = rf.SyncTX(Complex64ToInt16(data), Metadata{}, 3500)
 
 	if err == nil {
 		t.Log("PASSED")
@@ -1240,7 +1240,7 @@ func TestSyncRX(t *testing.T) {
 	err = rf.SyncConfig(RxX1, FormatSc16Q11, 2, 1024, 1, 3500)
 	err = rf.EnableModule(ChannelRx(0))
 
-	data, _, err := rf.SyncRX(1024, Metadata{})
+	data, _, err := rf.SyncRX(1024, Metadata{}, 3500)
 
 	complexData := Int16ToComplex64(data)
 
