@@ -1,6 +1,9 @@
 package log
 
-// #cgo LDFLAGS: -lbladeRF
+// #cgo CFLAGS: -I${SRCDIR}/../build/dist/include
+// #cgo linux LDFLAGS: -L${SRCDIR}/../build/dist/lib -Wl,-Bstatic -lbladeRF -Wl,-Bdynamic -ldl -lm -lpthread
+// #cgo darwin CFLAGS: -I/usr/local/include
+// #cgo darwin LDFLAGS: -L${SRCDIR}/../build/dist/lib -L/usr/local/lib -lbladeRF -lusb-1.0 -lm -lpthread
 // #include <libbladeRF.h>
 import "C"
 import "errors"
@@ -32,7 +35,7 @@ func SetVerbosity(level Level) {
 	case Critical:
 		C.bladerf_log_set_verbosity(C.BLADERF_LOG_LEVEL_CRITICAL)
 	case Silent:
-		C.bladerf_log_set_verbosity(C.BLADERF_LOG_LEVEL_VERBOSE)
+		C.bladerf_log_set_verbosity(C.BLADERF_LOG_LEVEL_SILENT)
 	default:
 		panic(errors.New("invalid libbladerf_verbosity"))
 	}

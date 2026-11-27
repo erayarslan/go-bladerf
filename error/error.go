@@ -1,7 +1,6 @@
 package error
 
-// #include <libbladeRF.h>
-import "C"
+import "fmt"
 
 type Code int
 
@@ -27,7 +26,7 @@ const (
 	NotInit     Code = -19
 )
 
-func codeToString(code Code) string {
+func (code Code) String() string {
 	switch code {
 	case Unexpected:
 		return "An unexpected failure occurred"
@@ -67,23 +66,24 @@ func codeToString(code Code) string {
 		return "Operation would block, but has been requested to be non-blocking. This indicates to a caller that it may need to retry the operation later."
 	case NotInit:
 		return "Device insufficiently initialized for operation"
+	default:
+		return "InvalidError"
 	}
-
-	return "InvalidError"
 }
 
-type errorString struct {
-	s string
+func (code Code) Error() string {
+	return code.String()
 }
 
-func (e *errorString) Error() string {
-	return e.s
-}
+var (
+	_ fmt.Stringer = Code(0)
+	_ error        = Code(0)
+)
 
 func New(code int) error {
 	if code == 0 {
 		return nil
 	}
 
-	return &errorString{s: codeToString(Code(code))}
+	return Code(code)
 }

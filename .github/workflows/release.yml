@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version label'
+        required: false
+        default: 'dev'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Package (linux/${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Initialize submodules over HTTPS
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule update --init thirdparty/bladeRF
+          git -C thirdparty/bladeRF submodule update --init thirdparty/analogdevicesinc/no-OS
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config rsync ca-certificates curl bzip2 \
+            libasound2-dev libvulkan-dev glslc rdma-core librdmacm1 libibverbs1 ibverbs-providers iproute2 ethtool kmod
+          if ! sudo apt-get install -y --no-install-recommends "linux-modules-extra-$(uname -r)" || ! sudo modprobe -n rdma_rxe >/dev/null 2>&1; then
+            sudo apt-get install -y --no-install-recommends \
+              qemu-system-x86 qemu-system-arm busybox-static cpio zstd util-linux
+          fi
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Run full test suite
+        run: make test
+
+      - name: Run live RDMA (SoftRoCE) integration tests
+        run: make test-rdma
+
+      - name: Build release bundle
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            VERSION="${INPUT_VERSION:-dev}"
+          fi
+          ./scripts/package_release.sh "$VERSION" "${{ matrix.arch }}"
+
+      - name: Smoke-test extracted release bundle
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            VERSION="${INPUT_VERSION:-dev}"
+          fi
+          BUNDLE="go-bladerf-${VERSION}-linux-${{ matrix.arch }}"
+          mkdir -p /tmp/smoke /tmp/smoke-isolated
+          tar -xzf "build/release/${BUNDLE}.tar.gz" -C /tmp/smoke
+          for bin in bladerf-remote; do
+            if readelf -d "/tmp/smoke/${BUNDLE}/bin/${bin}" | grep -qE 'libportaudio|libjack|libasound|libusb|libudev|librdmacm|libibverbs|libnl|libvulkan|libstdc\+\+|libgomp|libgcc_s|RPATH|RUNPATH'; then
+              echo "Unexpected shared lib or RPATH in ${bin}" >&2
+              readelf -d "/tmp/smoke/${BUNDLE}/bin/${bin}" >&2
+              exit 1
+            fi
+          done
+          cp "/tmp/smoke/${BUNDLE}/bin/bladerf-remote" /tmp/smoke-isolated/
+          /tmp/smoke-isolated/bladerf-remote -l 127.0.0.1:15556 --sim &
+          SIM_PID=$!
+          "/tmp/smoke/${BUNDLE}/bin/bladerf-mock" -l 127.0.0.1:15555 &
+          MOCK_PID=$!
+          trap 'kill "$MOCK_PID" "$SIM_PID" 2>/dev/null || true; rm -rf /tmp/smoke /tmp/smoke-isolated' EXIT
+          sleep 0.3
+          kill -0 "$SIM_PID"
+          kill -0 "$MOCK_PID"
+          BLADERF_REMOTE_ADDR=127.0.0.1:15556 go test -v -run '^TestRemoteEnvAutoDiscovery$' .
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-${{ matrix.arch }}
+          path: |
+            build/release/*.tar.gz
+            build/release/bladerf-mock-*
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-linux-*
+          merge-multiple: true
+          path: dist
+
+      - name: Generate SHA256SUMS
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

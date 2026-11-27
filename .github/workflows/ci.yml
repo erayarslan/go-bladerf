@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Build and Test (linux/${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Initialize submodules over HTTPS
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule update --init thirdparty/bladeRF
+          git -C thirdparty/bladeRF submodule update --init thirdparty/analogdevicesinc/no-OS
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config rsync ca-certificates curl bzip2 \
+            libasound2-dev libvulkan-dev glslc rdma-core librdmacm1 libibverbs1 \
+            librdmacm-dev libibverbs-dev ibverbs-providers iproute2 ethtool kmod
+          if ! sudo apt-get install -y --no-install-recommends "linux-modules-extra-$(uname -r)" || ! sudo modprobe -n rdma_rxe >/dev/null 2>&1; then
+            sudo apt-get install -y --no-install-recommends \
+              qemu-system-x86 qemu-system-arm busybox-static cpio zstd util-linux
+          fi
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Build binaries and run all tests
+        run: |
+          make
+          make test
+
+      - name: Run live RDMA (SoftRoCE) integration tests
+        run: make test-rdma

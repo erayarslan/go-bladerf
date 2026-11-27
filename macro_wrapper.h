@@ -1,3 +1,6 @@
+#ifndef GO_BLADERF_MACRO_WRAPPER_H
+#define GO_BLADERF_MACRO_WRAPPER_H
+
 #include <libbladeRF.h>
 
 extern uint64_t ReTuneNow;
@@ -16,6 +19,10 @@ extern uint8_t TriggerRegLine;
 extern void* StreamNoData;
 extern void* StreamShutdown;
 
+extern void* StreamCallback(struct bladerf *dev, struct bladerf_stream *stream, struct bladerf_metadata *md, void *samples, size_t num_samples, void *user_data);
+
 int ChannelRx(const int ch);
 int ChannelTx(const int ch);
 int ChannelIsTx(const int ch);
+
+#endif

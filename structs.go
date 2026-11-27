@@ -2,11 +2,14 @@ package bladerf
 
 // #include <libbladeRF.h>
 import "C"
+import "unsafe"
 
 type Timestamp uint64
 
 type DeviceInfo struct {
-	ref          *C.struct_bladerf_devinfo
+	raw          C.struct_bladerf_devinfo
+	hasRaw       bool
+	listRef      *C.struct_bladerf_devinfo
 	Backend      Backend
 	Serial       string
 	UsbBus       int8
@@ -14,46 +17,65 @@ type DeviceInfo struct {
 	Instance     uint
 	Manufacturer string
 	Product      string
+	Addr         string
 }
 
 func NewDeviceInfo(ref *C.struct_bladerf_devinfo) DeviceInfo {
-	deviceInfo := DeviceInfo{ref: ref}
-
-	var serial []rune
-	var manufacturer []rune
-	var product []rune
-
-	for i := range deviceInfo.ref.serial {
-		if deviceInfo.ref.serial[i] != 0 {
-			serial = append(serial, rune(deviceInfo.ref.serial[i]))
-		}
+	if ref == nil {
+		return DeviceInfo{}
 	}
 
-	for i := range deviceInfo.ref.manufacturer {
-		if deviceInfo.ref.manufacturer[i] != 0 {
-			manufacturer = append(manufacturer, rune(deviceInfo.ref.manufacturer[i]))
-		}
+	return DeviceInfo{
+		raw:          *ref,
+		hasRaw:       true,
+		Backend:      Backend(ref.backend),
+		Serial:       C.GoString(&ref.serial[0]),
+		UsbBus:       int8(ref.usb_bus),
+		UsbAddr:      int8(ref.usb_addr),
+		Instance:     uint(ref.instance),
+		Manufacturer: C.GoString(&ref.manufacturer[0]),
+		Product:      C.GoString(&ref.product[0]),
+		Addr:         C.GoString(&ref.addr[0]),
+	}
+}
+
+func (d *DeviceInfo) cStruct() C.struct_bladerf_devinfo {
+	var out C.struct_bladerf_devinfo
+	if d == nil {
+		return out
+	}
+	if d.hasRaw {
+		out = d.raw
 	}
 
-	for i := range deviceInfo.ref.product {
-		if deviceInfo.ref.product[i] != 0 {
-			product = append(product, rune(deviceInfo.ref.product[i]))
-		}
+	out.backend = C.bladerf_backend(d.Backend)
+	copyGoStringToCChars(out.serial[:], d.Serial)
+	out.usb_bus = C.uint8_t(uint8(d.UsbBus))
+	out.usb_addr = C.uint8_t(uint8(d.UsbAddr))
+	out.instance = C.uint(d.Instance)
+	copyGoStringToCChars(out.manufacturer[:], d.Manufacturer)
+	copyGoStringToCChars(out.product[:], d.Product)
+	copyGoStringToCChars(out.addr[:], d.Addr)
+	return out
+}
+
+func copyGoStringToCChars(dst []C.char, s string) {
+	if len(dst) == 0 {
+		return
 	}
 
-	deviceInfo.Backend = Backend(deviceInfo.ref.backend)
-	deviceInfo.Serial = string(serial)
-	deviceInfo.UsbBus = int8(deviceInfo.ref.usb_bus)
-	deviceInfo.UsbAddr = int8(deviceInfo.ref.usb_addr)
-	deviceInfo.Instance = uint(deviceInfo.ref.instance)
-	deviceInfo.Manufacturer = string(manufacturer)
-	deviceInfo.Product = string(product)
+	limit := len(dst) - 1
+	if len(s) < limit {
+		limit = len(s)
+	}
 
-	return deviceInfo
+	for i := 0; i < limit; i++ {
+		dst[i] = C.char(s[i])
+	}
+	dst[limit] = 0
 }
 
 type Version struct {
-	ref      *C.struct_bladerf_version
 	Major    uint16
 	Minor    uint16
 	Patch    uint16
@@ -61,29 +83,45 @@ type Version struct {
 }
 
 func NewVersion(ref *C.struct_bladerf_version) Version {
-	version := Version{ref: ref}
+	if ref == nil {
+		return Version{}
+	}
 
-	version.Major = uint16((*ref).major)
-	version.Minor = uint16((*ref).minor)
-	version.Patch = uint16((*ref).patch)
-	version.Describe = C.GoString((*ref).describe)
-
-	return version
+	return Version{
+		Major:    uint16(ref.major),
+		Minor:    uint16(ref.minor),
+		Patch:    uint16(ref.patch),
+		Describe: C.GoString(ref.describe),
+	}
 }
 
 type RationalRate struct {
-	ref     *C.struct_bladerf_rational_rate
 	Integer uint64
 	Num     uint64
 	Den     uint64
 }
 
 func NewRationalRate(ref *C.struct_bladerf_rational_rate) RationalRate {
-	return RationalRate{ref: ref, Integer: uint64((*ref).integer), Num: uint64((*ref).num), Den: uint64((*ref).den)}
+	if ref == nil {
+		return RationalRate{}
+	}
+
+	return RationalRate{
+		Integer: uint64(ref.integer),
+		Num:     uint64(ref.num),
+		Den:     uint64(ref.den),
+	}
+}
+
+func (r RationalRate) toC() C.struct_bladerf_rational_rate {
+	return C.struct_bladerf_rational_rate{
+		integer: C.uint64_t(r.Integer),
+		num:     C.uint64_t(r.Num),
+		den:     C.uint64_t(r.Den),
+	}
 }
 
 type Range struct {
-	ref   *C.struct_bladerf_range
 	Min   int64
 	Max   int64
 	Step  int64
@@ -91,7 +129,16 @@ type Range struct {
 }
 
 func NewRange(ref *C.struct_bladerf_range) Range {
-	return Range{ref: ref, Min: int64((*ref).min), Max: int64((*ref).max), Step: int64((*ref).step), Scale: float64((*ref).scale)}
+	if ref == nil {
+		return Range{}
+	}
+
+	return Range{
+		Min:   int64(ref.min),
+		Max:   int64(ref.max),
+		Step:  int64(ref.step),
+		Scale: float64(ref.scale),
+	}
 }
 
 type BladeRF struct {
@@ -103,23 +150,20 @@ type QuickTune struct {
 }
 
 type Serial struct {
-	ref    *C.struct_bladerf_serial
 	Serial string
 }
 
 func NewSerial(ref *C.struct_bladerf_serial) Serial {
-	var serial []rune
-	for i := range (*ref).serial {
-		if (*ref).serial[i] != 0 {
-			serial = append(serial, rune((*ref).serial[i]))
-		}
+	if ref == nil {
+		return Serial{}
 	}
 
-	return Serial{ref: ref, Serial: string(serial)}
+	return Serial{Serial: C.GoString(&ref.serial[0])}
 }
 
 type Stream struct {
-	ref *C.struct_bladerf_stream
+	ref      *C.struct_bladerf_stream
+	userData unsafe.Pointer
 }
 
 type Trigger struct {
@@ -127,37 +171,38 @@ type Trigger struct {
 }
 
 type LoopbackModes struct {
-	ref  *C.struct_bladerf_loopback_modes
 	Name string
 	Mode Loopback
 }
 
 func NewLoopbackModes(ref *C.struct_bladerf_loopback_modes) LoopbackModes {
-	loopbackModes := LoopbackModes{ref: ref}
+	if ref == nil {
+		return LoopbackModes{}
+	}
 
-	loopbackModes.Name = C.GoString(loopbackModes.ref.name)
-	loopbackModes.Mode = Loopback(loopbackModes.ref.mode)
-
-	return loopbackModes
+	return LoopbackModes{
+		Name: C.GoString(ref.name),
+		Mode: Loopback(ref.mode),
+	}
 }
 
 type GainModes struct {
-	ref  *C.struct_bladerf_gain_modes
 	Name string
 	Mode GainMode
 }
 
 func NewGainModes(ref *C.struct_bladerf_gain_modes) GainModes {
-	gainModes := GainModes{ref: ref}
+	if ref == nil {
+		return GainModes{}
+	}
 
-	gainModes.Name = C.GoString(gainModes.ref.name)
-	gainModes.Mode = GainMode(gainModes.ref.mode)
-
-	return gainModes
+	return GainModes{
+		Name: C.GoString(ref.name),
+		Mode: GainMode(ref.mode),
+	}
 }
 
 type Metadata struct {
-	ref         *C.struct_bladerf_metadata
 	Timestamp   Timestamp
 	Flags       uint32
 	Status      uint32
@@ -165,23 +210,32 @@ type Metadata struct {
 }
 
 func LoadMetadata(ref *C.struct_bladerf_metadata) Metadata {
-	metadata := Metadata{ref: ref}
+	if ref == nil {
+		return Metadata{}
+	}
 
-	metadata.Timestamp = Timestamp(metadata.ref.timestamp)
-	metadata.Flags = uint32(metadata.ref.flags)
-	metadata.Status = uint32(metadata.ref.status)
-	metadata.ActualCount = uint(metadata.ref.actual_count)
-
-	return metadata
+	return Metadata{
+		Timestamp:   Timestamp(ref.timestamp),
+		Flags:       uint32(ref.flags),
+		Status:      uint32(ref.status),
+		ActualCount: uint(ref.actual_count),
+	}
 }
 
 func NewMetadata(timestamp Timestamp, flags uint32) Metadata {
-	ref := C.struct_bladerf_metadata{
-		timestamp: C.uint64_t(timestamp),
-		flags:     C.uint32_t(flags),
+	return Metadata{
+		Timestamp: timestamp,
+		Flags:     flags,
 	}
+}
 
-	return LoadMetadata(&ref)
+func (m Metadata) toC() C.struct_bladerf_metadata {
+	return C.struct_bladerf_metadata{
+		timestamp:    C.bladerf_timestamp(m.Timestamp),
+		flags:        C.uint32_t(m.Flags),
+		status:       C.uint32_t(m.Status),
+		actual_count: C.uint(m.ActualCount),
+	}
 }
 
 type UserData struct {
@@ -191,5 +245,9 @@ type UserData struct {
 }
 
 func NewUserData(callback func(data []int16) GoStream, bufferSize int) UserData {
-	return UserData{callback: callback, results: make([]int16, bufferSize), bufferSize: bufferSize}
+	return UserData{
+		callback:   callback,
+		results:    make([]int16, bufferSize),
+		bufferSize: bufferSize,
+	}
 }

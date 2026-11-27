@@ -26,7 +26,10 @@ type VctcxoTamerMode int
 type TuningMode int
 type GoStream int
 
-const FlashPageSize = 256 // BLADERF_FLASH_PAGE_SIZE - Size of the SPI flash, in pages
+const (
+	FlashPageSize = 256 // BLADERF_FLASH_PAGE_SIZE - Size of the SPI flash, in pages
+	OtpSize       = 256 // Size of the OTP memory, in bytes
+)
 
 const (
 	GoStreamNext     GoStream = 0
@@ -40,6 +43,8 @@ const (
 	BackendLibUSB  Backend = C.BLADERF_BACKEND_LIBUSB
 	BackendCypress Backend = C.BLADERF_BACKEND_CYPRESS
 	BackendDummy   Backend = C.BLADERF_BACKEND_DUMMY
+	BackendRDMA    Backend = C.BLADERF_BACKEND_RDMA
+	BackendTCP     Backend = C.BLADERF_BACKEND_TCP
 )
 
 const (
@@ -53,6 +58,7 @@ const (
 	ClockSelectOnboard  ClockSelect = C.CLOCK_SELECT_ONBOARD
 	ClockSelectExternal ClockSelect = C.CLOCK_SELECT_EXTERNAL
 )
+
 const (
 	CorrectionDcoffI Correction = C.BLADERF_CORR_DCOFF_I
 	CorrectionDcoffQ Correction = C.BLADERF_CORR_DCOFF_Q
